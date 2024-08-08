@@ -2,7 +2,7 @@
 name = "wallswitch"
 description = "randomly sets wallpapers for n Linux desktop monitors (arranged horizontally)."
 authors = ["Claudio F S Rodrigues <claudiofsrodrigues@gmail.com>"]
-version = "0.30.0"
+version = "0.30.1"
 repository = "https://github.com/claudiofsr/wallswitch"
 homepage = "https://github.com/claudiofsr/wallswitch"
 documentation = "https://docs.rs/wallswitch"

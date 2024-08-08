@@ -19,7 +19,7 @@ Randomly sets wallpapers for `n` Linux desktop monitors (arranged horizontally).
 * **Duplicate Avoidance:** Ignores identical image files to ensure unique wallpapers on each screen.
 * **Configurable Filtering:**
 
-   -  **Image Size (Dimension):** Filter images based on minimum and maximum dimension (height, width).
+   -  **Image Dimension:** Filter images based on minimum and maximum dimension (height, width).
    -  **File Size:** Specify minimum and maximum file sizes for searching. 
 
 **Usage:**
