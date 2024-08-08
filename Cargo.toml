@@ -9,7 +9,7 @@ documentation = "https://docs.rs/wallswitch"
 license = "BSD-3-Clause"
 readme = "README.md"
 edition = "2021"
-rust-version = "1.80" # checked_ilog10 && LazyLock
+rust-version = "1.80" # LazyLock
 categories = ["command-line-utilities"]
 keywords = [
     "wallpaper",
