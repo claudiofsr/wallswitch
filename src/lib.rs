@@ -175,7 +175,7 @@ pub fn get_random_integer(min: u64, max: u64) -> u64 {
 /// Return error if `min > max``
 pub fn get_random_integer_v2(min: u64, max: u64) -> MyResult<u64> {
     if min > max {
-        Err(WSError::MinMaxValue(min, max).into())
+        Err(WSError::MinMax(min, max).into())
     } else {
         // The remainder (`%`) after division is always less than the divisor.
         Ok(min + rand() % (max - min + 1))

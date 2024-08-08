@@ -28,7 +28,7 @@ pub enum WSError<'a> {
     /// Unable to obtain maximum value
     MaxValue,
     /// Minimum value > Maximum value
-    MinMaxValue(u64, u64),
+    MinMax(u64, u64),
     /// Missing value
     MissingValue(&'a str),
     /// Invalid value
@@ -73,7 +73,7 @@ impl fmt::Display for WSError<'_> {
             WSError::Parent(path) => write!(f, "Wallpaper dir {path:?} does not exist."),
             WSError::MinValue => write!(f, "Unable to obtain minimum value!"),
             WSError::MaxValue => write!(f, "Unable to obtain maximum value!"),
-            WSError::MinMaxValue(min, max) => write!(
+            WSError::MinMax(min, max) => write!(
                 f,
                 "{e}: min ({min}) must be less than or equal to max ({max})\n\
                 The condition ({min} <= {max}) is false.\n

@@ -213,7 +213,7 @@ impl Config {
             (self.min_size, self.max_size),
         ] {
             if min > max {
-                return Err(WSError::MinMaxValue(min, max));
+                return Err(WSError::MinMax(min, max));
             }
         }
 
