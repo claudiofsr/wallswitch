@@ -116,12 +116,12 @@ impl Arguments {
                     arguments.max_dimension = Some(dimension)
                 }
                 "--min_size" | "-b" => {
-                    let size: u64 = parse_value(iter.next(), "--min_size", 0)?;
-                    arguments.min_size = Some(size)
+                    let min_size: u64 = parse_value(iter.next(), "--min_size", 0)?;
+                    arguments.min_size = Some(min_size)
                 }
                 "--max_size" | "-B" => {
-                    let size: u64 = parse_value(iter.next(), "--max_size", 0)?;
-                    arguments.max_size = Some(size)
+                    let max_size: u64 = parse_value(iter.next(), "--max_size", 0)?;
+                    arguments.max_size = Some(max_size)
                 }
                 "--interval" | "-i" => {
                     let interval: u64 = parse_value(iter.next(), "--interval", 5)?;

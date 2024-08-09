@@ -166,6 +166,18 @@ impl From<TryFromIntError> for WSError<'_> {
     }
 }
 
+/// Wrap WSError in String
+pub trait ErrorExt {
+    fn wrap(self) -> Self;
+}
+
+impl ErrorExt for WSError<'static> {
+    fn wrap(self) -> Self {
+        eprintln!("{self}\n");
+        self
+    }
+}
+
 #[derive(Debug)]
 pub struct DimensionError {
     pub dimension: Dimension,
