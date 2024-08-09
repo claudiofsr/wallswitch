@@ -132,7 +132,7 @@ impl Error for DimError {}
 
 #[cfg(test)]
 mod test_dimension {
-    use crate::{dimension::split_str, MyResult};
+    use super::*;
 
     #[test]
     /// `cargo test -- --show-output split_str_sample_1`
@@ -170,6 +170,9 @@ mod test_dimension {
         let parse_error = "cannot parse integer from empty string";
         let output = format!("Error: '{string}' split failed!\n{parse_error}",);
 
+        let error = split_str(string).unwrap_err();
+        assert!(error.is::<DimError>());
+
         assert!(result.is_err());
         assert_eq!(opt_error, output);
     }
@@ -189,6 +192,9 @@ mod test_dimension {
         let opt_error: String = result_to_string.unwrap_err().to_string();
         let parse_error = "invalid digit found in string";
         let output = format!("Error: '{string}' split failed!\n{parse_error}",);
+
+        let error = split_str(string).unwrap_err();
+        assert!(error.is::<DimError>());
 
         assert!(result.is_err());
         assert_eq!(opt_error, output);
