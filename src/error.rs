@@ -19,6 +19,8 @@ pub enum WSError<'a> {
     NoImages(Vec<PathBuf>),
     /// Insufficient number of image files
     InsufficientImages(Vec<PathBuf>, usize),
+    /// Insufficient number of valid images
+    InsufficientNumber,
     /// Writing/Reading error
     IOError(PathBuf, MyError),
     /// Directory path must exist
@@ -69,6 +71,7 @@ impl fmt::Display for WSError<'_> {
                 n = nfiles.yellow(),
                 e = "Error".red().bold(),
             ),
+            WSError::InsufficientNumber => write!(f, "Insufficient number of valid images!"),
             WSError::IOError(path, io_error) => write!(f, "\nFailed to create file {path:?}\n{io_error}"),
             WSError::Parent(path) => write!(f, "Wallpaper dir {path:?} does not exist."),
             WSError::MinValue => write!(f, "Unable to obtain minimum value!"),
@@ -172,7 +175,7 @@ pub struct DimensionError {
 }
 
 impl fmt::Display for DimensionError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
             "{error}: invalid dimension '{dimension}'.\n\

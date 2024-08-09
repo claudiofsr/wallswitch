@@ -61,7 +61,7 @@ fn main() -> MyResult<()> {
 
         // Make sure there are enough valid images
         if count == 0 {
-            panic!("Insufficient number of valid images!");
+            Err(WSError::InsufficientNumber.to_string())?
         }
     }
 }
