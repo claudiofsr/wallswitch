@@ -191,3 +191,23 @@ impl fmt::Display for DimensionError {
 }
 
 impl Error for DimensionError {}
+
+#[cfg(test)]
+mod error_tests {
+    use crate::{Colors, WSError};
+    use std::path::PathBuf;
+
+    #[test]
+    /// `cargo test -- --show-output test_error_display`
+    fn test_error_display() {
+        let path = PathBuf::from("/tmp");
+        let text = format!("Disregard the path: '{}'.", path.display().yellow());
+
+        assert_eq!(
+            WSError::InsufficientNumber.to_string(),
+            "Insufficient number of valid images!"
+        );
+
+        assert_eq!(WSError::DisregardPath(path).to_string(), text);
+    }
+}
