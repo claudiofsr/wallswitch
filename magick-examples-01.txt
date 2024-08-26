@@ -1,0 +1,85 @@
+man magick
+
+https://www.imagemagick.org/script/command-line-processing.php
+https://www.imagemagick.org/Magick++/Image++.html
+
+Consider m = 2 monitors with the resolutions:
+
+"resolutions": [
+	{
+	  "width": 3840,
+	  "height": 2160
+	},
+	{
+	  "width": 3840,
+	  "height": 2160
+	}
+]
+
+Consider 3 figures or images for each monitor:
+fig01.avif  
+fig02.jpg  
+fig03.webp
+
+Size occupied by each image:
+3840 / 3 = 1280
+2160 / 3 = 720
+
+
+
+Example 1: different resolutions
+monitor orientation: Side-by-side (horizontal)
+
+magick -gravity Center \
+\( fig01* -resize 3840x2160^ -extent 3840x2160 \) \
+\( fig02* -resize 1920x1080^ -extent 1920x1080 \) \
+\( fig03* -resize 3840x2160^ -extent 3840x2160 \) \
+-gravity South +append wallpaper.jpg
+
+
+
+Example 2: equal resolutions, horizontal + vertical
+monitor orientation: Side-by-side (horizontal)
+
+magick \
+\( \
+-gravity Center \
+\( fig01* -resize 3840x720^ -extent 3840x720 \) \
+\( fig02* -resize 3840x720^ -extent 3840x720 \) \
+\( fig03* -resize 3840x720^ -extent 3840x720 \) \
+-gravity South -append \
+\) \
+-resize 3840x2160^ -extent 3840x2160 \
+\( \
+-gravity Center \
+\( fig01* -resize 1280x2160^ -extent 1280x2160 \) \
+\( fig02* -resize 1280x2160^ -extent 1280x2160 \) \
+\( fig03* -resize 1280x2160^ -extent 1280x2160 \) \
+-gravity South +append \
+\) \
+-resize 3840x2160^ -extent 3840x2160 \
++append wallpaper.jpg
+
+
+
+Example 3: equal resolutions, vertical + horizontal
+monitor orientation: Side-by-side (horizontal)
+
+magick \
+\( \
+-gravity Center \
+\( fig01* -resize 1280x2160^ -extent 1280x2160 \) \
+\( fig02* -resize 1280x2160^ -extent 1280x2160 \) \
+\( fig03* -resize 1280x2160^ -extent 1280x2160 \) \
+-gravity South +append \
+\) \
+-resize 3840x2160^ -extent 3840x2160 \
+\( \
+-gravity Center \
+\( fig01* -resize 3840x720^ -extent 3840x720 \) \
+\( fig02* -resize 3840x720^ -extent 3840x720 \) \
+\( fig03* -resize 3840x720^ -extent 3840x720 \) \
+-gravity South -append \
+\) \
+-resize 3840x2160^ -extent 3840x2160 \
++append wallpaper.jpg

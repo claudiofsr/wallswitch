@@ -1,0 +1,52 @@
+
+use builtin;
+use str;
+
+set edit:completion:arg-completer[wallswitch] = {|@words|
+    fn spaces {|n|
+        builtin:repeat $n ' ' | str:join ''
+    }
+    fn cand {|text desc|
+        edit:complex-candidate $text &display=$text' '(spaces (- 14 (wcswidth $text)))$desc
+    }
+    var command = 'wallswitch'
+    for word $words[1..-1] {
+        if (str:has-prefix $word '-') {
+            break
+        }
+        set command = $command';'$word
+    }
+    var completions = [
+        &'wallswitch'= {
+            cand -b 'Set a minimum file size (in bytes) for searching image files'
+            cand --min_size 'Set a minimum file size (in bytes) for searching image files'
+            cand -B 'Set a maximum file size (in bytes) for searching image files'
+            cand --max_size 'Set a maximum file size (in bytes) for searching image files'
+            cand -g 'Generate shell completions and exit the program'
+            cand --generate 'Generate shell completions and exit the program'
+            cand -d 'Set the minimum dimension that the height and width must satisfy'
+            cand --min_dimension 'Set the minimum dimension that the height and width must satisfy'
+            cand -D 'Set the maximum dimension that the height and width must satisfy'
+            cand --max_dimension 'Set the maximum dimension that the height and width must satisfy'
+            cand -i 'Set the interval (in seconds) between each wallpaper displayed'
+            cand --interval 'Set the interval (in seconds) between each wallpaper displayed'
+            cand -m 'Set the number of monitors [default: 2]'
+            cand --monitor 'Set the number of monitors [default: 2]'
+            cand -o 'Inform monitor orientation: Horizontal (side-by-side) or Vertical (stacked)'
+            cand --orientation 'Inform monitor orientation: Horizontal (side-by-side) or Vertical (stacked)'
+            cand -p 'Set number of pictures (or images) per monitor [default: 1]'
+            cand --pictures_per_monitor 'Set number of pictures (or images) per monitor [default: 1]'
+            cand -c 'Read the configuration file and exit the program'
+            cand --config 'Read the configuration file and exit the program'
+            cand -s 'Sort the images found'
+            cand --sort 'Sort the images found'
+            cand -v 'Show intermediate runtime messages'
+            cand --verbose 'Show intermediate runtime messages'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+            cand -V 'Print version'
+            cand --version 'Print version'
+        }
+    ]
+    $completions[$command]
+}
