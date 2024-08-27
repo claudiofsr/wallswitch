@@ -53,7 +53,7 @@ fn get_home() -> String {
     }
 }
 
-/// echo $DESKTOP_SESSION
+/// Get desktop name
 ///
 /// env | grep -i desktop
 ///
@@ -64,8 +64,10 @@ fn get_home() -> String {
 /// * DESKTOP_SESSION=pop
 ///
 /// * XDG_SESSION_DESKTOP=pop
+///
+/// echo $DESKTOP_SESSION
 fn get_desktop() -> String {
-    let mut desktops = Vec::new();
+    let mut desktops: Vec<String> = Vec::new();
 
     for key in [
         "XDG_CURRENT_DESKTOP",
@@ -73,14 +75,19 @@ fn get_desktop() -> String {
         "DESKTOP_SESSION",
     ] {
         if let Ok(desktop) = env::var(key) {
-            desktops.push(desktop.to_lowercase());
+            desktops.push(desktop.trim().to_lowercase());
         }
     }
 
-    // println!("desktops: {desktops:#?}");
+    // Sort (in ascending order) a vector of strings according to string lengths.
+    desktops.sort_by_key(|desktop| desktop.chars().count());
 
-    match desktops.into_iter().find(|d| !d.is_empty()) {
-        Some(desktop) => desktop,
+    println!("desktops: {desktops:#?}");
+
+    // The last item is the longest string and probably contains
+    // the most information about the desktop name.
+    match desktops.last() {
+        Some(desktop) => desktop.to_string(),
         None => panic!("Error: Unable to get desktop type!"),
     }
 }
