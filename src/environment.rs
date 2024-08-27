@@ -82,7 +82,7 @@ fn get_desktop() -> String {
     // Sort (in ascending order) a vector of strings according to string lengths.
     desktops.sort_by_key(|desktop| desktop.chars().count());
 
-    println!("desktops: {desktops:#?}");
+    // println!("desktops: {desktops:#?}");
 
     // The last item is the longest string and probably contains
     // the most information about the desktop name.
