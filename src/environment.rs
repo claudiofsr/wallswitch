@@ -92,7 +92,7 @@ fn get_desktop() -> String {
     }
 }
 
-/// Get Pkg Name
+/// Get the package name
 ///
 /// std::env::current_exe()
 ///
