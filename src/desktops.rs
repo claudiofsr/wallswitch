@@ -290,10 +290,10 @@ fn get_partitions_iter<'a>(
 /// Executes the command as a child process,
 /// waiting for it to finish and collecting all of its output.
 pub fn exec_cmd(cmd: &mut Command, verbose: bool, msg: &str) -> MyResult<Output> {
-    let output: Output = cmd.output().map_err(|error| {
+    let output: Output = cmd.output().inspect_err(|error| {
         eprintln!("fn exec_cmd()");
         eprintln!("cmd: {cmd:?}");
-        error
+        eprintln!("Error: {error}");
     })?;
 
     if !output.status.success() || verbose {
