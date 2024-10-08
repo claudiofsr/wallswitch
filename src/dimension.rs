@@ -96,9 +96,8 @@ impl fmt::Display for Dimension {
 
 fn split_str(string: &str) -> MyResult<Vec<u64>> {
     let numbers: Vec<u64> = string
-        .trim()
         .split('x')
-        .map(|s| s.parse::<u64>())
+        .map(|s| s.trim().parse::<u64>())
         .collect::<Result<Vec<u64>, ParseIntError>>()
         .map_err(|parse_error| {
             // Add a custom error message
@@ -148,7 +147,7 @@ mod test_dimension {
     #[test]
     /// `cargo test -- --show-output split_str_sample_1`
     fn split_str_sample_1() {
-        let string = "123x4567";
+        let string = " 123 x 4567 ";
 
         let result = split_str(string);
 

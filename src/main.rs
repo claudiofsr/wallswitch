@@ -40,7 +40,7 @@ fn main() -> MyResult<()> {
             }
 
             // Update FileInfo dimension field
-            let figures: Vec<FileInfo> = update_images(files, &config)?;
+            let figures: Vec<FileInfo> = update_images(files, &config);
 
             // Print Indented file information
             print!("{}", SliceDisplay(&figures));

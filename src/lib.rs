@@ -220,7 +220,7 @@ Parallelize the computation using std::thread::scope
 
 <https://stackoverflow.com/questions/74590440/how-do-i-change-the-structure-in-the-thread>
 */
-pub fn update_images(files: &[FileInfo], config: &Config) -> MyResult<Vec<FileInfo>> {
+pub fn update_images(files: &[FileInfo], config: &Config) -> Vec<FileInfo> {
     let mut owned_files: Vec<FileInfo> = files.to_vec();
 
     thread::scope(|scope| {
@@ -228,20 +228,19 @@ pub fn update_images(files: &[FileInfo], config: &Config) -> MyResult<Vec<FileIn
             scope.spawn(move || -> MyResult<()> {
                 //let id = thread::current().id();
                 //println!("identifier thread: {id:?}");
-                file.update_info(config)?;
-                Ok(())
+                file.update_info(config)
             });
         }
     });
 
-    Ok(owned_files)
+    owned_files
 }
 
 /*
 pub fn update_images_v2(
     files: &[FileInfo],
     config: &Config,
-) -> MyResult<Vec<FileInfo>> {
+) -> Vec<FileInfo> {
     let mut owned_files: Vec<FileInfo> = files.to_vec();
 
     thread::scope(|scope| {
@@ -251,8 +250,7 @@ pub fn update_images_v2(
             threads.push(scope.spawn(move || -> MyResult<()> {
                 //let id = thread::current().id();
                 //println!("identifier thread: {id:?}");
-                file.update_info(config)?;
-                Ok(())
+                file.update_info(config)
             }));
         }
 
@@ -261,7 +259,7 @@ pub fn update_images_v2(
         }
     });
 
-    Ok(owned_files)
+    owned_files
 }
 
 pub fn update_images_v3(
