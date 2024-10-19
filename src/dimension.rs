@@ -94,7 +94,28 @@ impl fmt::Display for Dimension {
     }
 }
 
-fn split_str(string: &str) -> MyResult<Vec<u64>> {
+/**
+Split string into two numbers
+
+Example:
+```
+use wallswitch::{split_str, MyResult};
+
+fn main() -> MyResult<()> {
+    let string1: &str = "123x4567";
+    let string2: &str = " 123 x 4567 \n";
+
+    let integers1: Vec<u64> = split_str(string1)?;
+    let integers2: Vec<u64> = split_str(string2)?;
+
+    assert_eq!(integers1, [123, 4567]);
+    assert_eq!(integers1, integers2);
+
+    Ok(())
+}
+```
+*/
+pub fn split_str(string: &str) -> MyResult<Vec<u64>> {
     let numbers: Vec<u64> = string
         .split('x')
         .map(|s| s.trim().parse::<u64>())
