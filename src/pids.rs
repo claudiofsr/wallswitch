@@ -1,4 +1,4 @@
-use crate::{exec_cmd, Config, MyResult, ENVIRON};
+use crate::{Config, ENVIRON, MyResult, exec_cmd};
 use std::process::Command;
 
 /// Killing the previous instances of `wallswitch` before running

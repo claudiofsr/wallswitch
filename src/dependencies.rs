@@ -1,4 +1,4 @@
-use crate::{exec_cmd, MyResult, WSError};
+use crate::{MyResult, WSError, exec_cmd};
 use std::{path::PathBuf, process::Command};
 
 /// Get the magick binary path

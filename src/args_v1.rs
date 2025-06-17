@@ -1,14 +1,14 @@
 // use clap
 // cargo b -r && cargo install --path=. --features args_v1
 
-use crate::{get_config_path, read_config_file, MyResult, Orientation};
+use crate::{MyResult, Orientation, get_config_path, read_config_file};
 use anstyle::{
     AnsiColor::{Cyan, Green, Yellow},
     Color::Ansi,
     Style,
 };
 use clap::{CommandFactory, Parser}; // command-line arguments
-use clap_complete::{generate, Generator, Shell};
+use clap_complete::{Generator, Shell, generate};
 
 // https://stackoverflow.com/questions/74068168/clap-rs-not-printing-colors-during-help
 fn get_styles() -> clap::builder::Styles {

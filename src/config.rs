@@ -1,8 +1,7 @@
 use crate::{
-    get_feh_path, get_magick_path, get_monitors, Arguments, Monitor, MyResult, Orientation,
-    ResultExt, U8Extension,
+    Arguments, ENVIRON, Monitor, MyResult, Orientation, ResultExt, U8Extension,
     WSError::{self, *},
-    ENVIRON,
+    get_feh_path, get_magick_path, get_monitors,
 };
 use serde::{Deserialize, Serialize};
 use std::{

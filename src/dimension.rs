@@ -129,7 +129,7 @@ pub fn split_str(string: &str) -> MyResult<Vec<u64>> {
         return Err(Box::new(DimError::InvalidFormat));
     }
 
-    if numbers.iter().any(|&number| number == 0) {
+    if numbers.contains(&0) {
         return Err(Box::new(DimError::ZeroDimension));
     }
 

@@ -1,4 +1,4 @@
-use crate::{exec_cmd, Config, Countable, Dimension, DimensionError, MyResult, WSError};
+use crate::{Config, Countable, Dimension, DimensionError, MyResult, WSError, exec_cmd};
 use std::{
     fmt,
     fs::File,

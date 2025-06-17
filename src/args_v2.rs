@@ -8,9 +8,9 @@ use std::{
 };
 
 use crate::{
-    get_config_path, read_config_file, MyResult, Orientation, ResultExt,
+    ENVIRON, MyResult, Orientation, ResultExt,
     WSError::{self, *},
-    ENVIRON,
+    get_config_path, read_config_file,
 };
 
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
@@ -237,12 +237,20 @@ fn show_help_summary() {
         "-B, --max_size <MAX_SIZE>\n\tSet a maximum file size (in bytes) for searching image files"
     );
     println!("-c, --config\n\tRead the configuration file and exit the program");
-    println!("-d, --min_dimension <MIN_DIMENSION>\n\tSet the minimum dimension that the height and width must satisfy");
-    println!("-D, --max_dimension <MAX_DIMENSION>\n\tSet the maximum dimension that the height and width must satisfy");
+    println!(
+        "-d, --min_dimension <MIN_DIMENSION>\n\tSet the minimum dimension that the height and width must satisfy"
+    );
+    println!(
+        "-D, --max_dimension <MAX_DIMENSION>\n\tSet the maximum dimension that the height and width must satisfy"
+    );
     println!("-h, --help\n\tPrint help");
-    println!("-i, --interval <INTERVAL>\n\tSet the interval (in seconds) between each wallpaper displayed");
+    println!(
+        "-i, --interval <INTERVAL>\n\tSet the interval (in seconds) between each wallpaper displayed"
+    );
     println!("-m, --monitor <MONITOR_NUMBER>\n\tSet the number of monitors [default: 2]");
-    println!("-o, --orientation <ORIENTATION>\n\tInform monitor orientation: Horizontal (side-by-side) or Vertical (stacked).");
+    println!(
+        "-o, --orientation <ORIENTATION>\n\tInform monitor orientation: Horizontal (side-by-side) or Vertical (stacked)."
+    );
     println!(
         "-p, --pictures_per_monitor <PICTURE>\n\tSet number of pictures (or images) per monitor [default: 1]"
     );
