@@ -177,7 +177,7 @@ mod test_dimension {
                 assert_eq!(numbers[0], 123);
                 assert_eq!(numbers[1], 4567);
             }
-            Err(err) => panic!("Unexpected error: {}", err),
+            Err(err) => panic!("Unexpected error: {err}"),
         }
     }
 

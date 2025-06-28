@@ -317,7 +317,7 @@ pub fn exec_cmd(cmd: &mut Command, verbose: bool, msg: &str) -> MyResult<Output>
         eprintln!("{msg} status: {status}");
         eprintln!("{msg} stderr: {stderr}");
 
-        panic!("{:?}", stderr);
+        panic!("{stderr:?}");
     }
 
     Ok(output)

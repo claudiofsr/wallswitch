@@ -290,7 +290,7 @@ mod test_lib {
         let mut vec: Vec<u32> = (1..=100).collect();
         shuffle(&mut vec);
 
-        println!("vec: {:?}", vec);
+        println!("vec: {vec:?}");
         assert_eq!(vec.len(), 100);
     }
 
@@ -302,14 +302,14 @@ mod test_lib {
         // Example: Get a random integer value in the range 1 to 20:
         let value: u64 = get_random_integer(1, 20);
 
-        println!("integer: {:?}", value);
+        println!("integer: {value:?}");
 
         // Generate a vector of 100 64-bit integer values in the range from 1 to 20,
         // allowing duplicates:
 
         let integers: Vec<u64> = (0..100).map(|_| get_random_integer(1, 20)).collect();
 
-        println!("integers: {:?}", integers);
+        println!("integers: {integers:?}");
 
         let condition_a = integers.iter().min() >= Some(&1);
         let condition_b = integers.iter().max() <= Some(&20);
@@ -327,7 +327,7 @@ mod test_lib {
         // Example: Get a random integer value in the range 1 to 20:
         let value: u64 = get_random_integer_v2(1, 20)?;
 
-        println!("integer: {:?}", value);
+        println!("integer: {value:?}");
 
         // Generate a vector of 100 64-bit integer values in the range from 1 to 20,
         // allowing duplicates:
@@ -336,7 +336,7 @@ mod test_lib {
             .map(|_| get_random_integer_v2(1, 20))
             .collect::<Result<Vec<u64>, _>>()?;
 
-        println!("integers: {:?}", integers);
+        println!("integers: {integers:?}");
 
         let condition_a = integers.iter().min() >= Some(&1);
         let condition_b = integers.iter().max() <= Some(&20);
