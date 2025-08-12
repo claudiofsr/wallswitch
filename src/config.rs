@@ -230,11 +230,11 @@ impl Config {
             }
         }
 
-        if let Some(parent) = self.wallpaper.parent() {
-            if !parent.exists() {
-                let dir: PathBuf = parent.to_path_buf();
-                return Err(Parent(dir));
-            }
+        if let Some(parent) = self.wallpaper.parent()
+            && !parent.exists()
+        {
+            let dir: PathBuf = parent.to_path_buf();
+            return Err(Parent(dir));
         }
 
         for (min, max) in [

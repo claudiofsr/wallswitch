@@ -86,10 +86,8 @@ impl FileInfo {
     pub fn name_is_valid(&self, config: &Config) -> bool {
         let is_valid = self.path.file_name() != config.wallpaper.file_name();
 
-        if !is_valid {
-            if let Some(path) = self.path.file_name() {
-                eprintln!("{}\n", WSError::InvalidFilename(path.into()));
-            }
+        if !is_valid && let Some(path) = self.path.file_name() {
+            eprintln!("{}\n", WSError::InvalidFilename(path.into()));
         }
 
         is_valid

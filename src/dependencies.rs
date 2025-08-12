@@ -5,18 +5,18 @@ use std::{path::PathBuf, process::Command};
 pub fn get_magick_path(verbose: bool) -> Result<PathBuf, WSError<'static>> {
     let path_magick = where_is("magick", verbose);
 
-    if let Ok(magick) = path_magick {
-        if magick.is_file() {
-            return Ok(magick);
-        }
+    if let Ok(magick) = path_magick
+        && magick.is_file()
+    {
+        return Ok(magick);
     };
 
     let path_convert = where_is("convert", verbose);
 
-    if let Ok(convert) = path_convert {
-        if convert.is_file() {
-            return Ok(convert);
-        }
+    if let Ok(convert) = path_convert
+        && convert.is_file()
+    {
+        return Ok(convert);
     };
 
     Err(WSError::UnableToFind("magick"))
