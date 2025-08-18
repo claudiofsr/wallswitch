@@ -2,7 +2,7 @@
 name = "wallswitch"
 description = "randomly selects wallpapers for multiple monitors"
 authors = ["Claudio F S Rodrigues <claudiofsrodrigues@gmail.com>"]
-version = "0.52.4"
+version = "0.52.5"
 repository = "https://github.com/claudiofsr/wallswitch"
 homepage = "https://github.com/claudiofsr/wallswitch"
 documentation = "https://docs.rs/wallswitch"
