@@ -2,7 +2,7 @@ use crate::{WallSwitchError, WallSwitchResult, exec_cmd};
 use std::{path::PathBuf, process::Command};
 
 /// Get the magick binary path
-pub fn get_magick_path(verbose: bool) -> Result<PathBuf, WallSwitchError> {
+pub fn get_magick_path(verbose: bool) -> WallSwitchResult<PathBuf> {
     let path_magick = where_is("magick", verbose);
 
     if let Ok(magick) = path_magick
@@ -23,7 +23,7 @@ pub fn get_magick_path(verbose: bool) -> Result<PathBuf, WallSwitchError> {
 }
 
 /// Get the feh binary path
-pub fn get_feh_path(verbose: bool) -> Result<PathBuf, WallSwitchError> {
+pub fn get_feh_path(verbose: bool) -> WallSwitchResult<PathBuf> {
     let path_feh = where_is("feh", verbose);
 
     match path_feh {
@@ -46,7 +46,7 @@ pub fn where_is(cmd: &str, verbose: bool) -> WallSwitchResult<PathBuf> {
 
 /// Convert a byte slice to pathbuf
 /// Returns a WallSwitchResult<PathBuf> which will be an error if the path is not found.
-fn bytes_to_path(cmd: &str, bytes: &[u8]) -> Result<PathBuf, WallSwitchError> {
+fn bytes_to_path(cmd: &str, bytes: &[u8]) -> WallSwitchResult<PathBuf> {
     let path_str = String::from_utf8_lossy(bytes);
 
     // Find the path string

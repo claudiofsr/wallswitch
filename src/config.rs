@@ -187,7 +187,7 @@ impl Config {
     }
 
     /// Validate configuration
-    pub fn validate_config(mut self) -> Result<Self, WallSwitchError> {
+    pub fn validate_config(mut self) -> WallSwitchResult<Self> {
         let boundary: Config = config_boundary();
 
         if self.interval < boundary.interval {
