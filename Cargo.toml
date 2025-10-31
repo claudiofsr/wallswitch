@@ -2,7 +2,7 @@
 name = "wallswitch"
 description = "randomly selects wallpapers for multiple monitors"
 authors = ["Claudio F S Rodrigues <claudiofsrodrigues@gmail.com>"]
-version = "0.52.5"
+version = "0.53.0"
 repository = "https://github.com/claudiofsr/wallswitch"
 homepage = "https://github.com/claudiofsr/wallswitch"
 documentation = "https://docs.rs/wallswitch"
@@ -23,6 +23,7 @@ keywords = [
 cfg-if = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+thiserror = "2.0"
 walkdir = "2.5"
 # rayon = { version = "1.10" }
 

@@ -1,4 +1,6 @@
-use crate::{Config, Countable, Dimension, DimensionError, MyResult, WSError, exec_cmd};
+use crate::{
+    Config, Countable, Dimension, DimensionError, WallSwitchError, WallSwitchResult, exec_cmd,
+};
 use std::{
     fmt,
     fs::File,
@@ -42,7 +44,7 @@ impl FileInfo {
     }
 
     /// Update dimension field and valid_dimension field
-    pub fn update_info(&mut self, config: &Config) -> MyResult<()> {
+    pub fn update_info(&mut self, config: &Config) -> WallSwitchResult<()> {
         // identify -format %wx%h image_file_path
         let mut cmd = Command::new("identify");
         let identify_cmd = cmd
@@ -64,15 +66,15 @@ impl FileInfo {
         let is_valid = self.dimension.is_valid(config);
 
         if !is_valid {
-            let dim_error = DimensionError {
+            // Instantiate the enum variant DimensionFormatError
+            let dim_error = DimensionError::DimensionFormatError {
                 dimension: self.dimension.clone(),
                 log_min: self.dimension.get_log_min(config),
                 log_max: self.dimension.get_log_max(config),
                 path: self.path.clone(),
             };
 
-            //return Err(WSError::InvalidDim(dim_error));
-            eprintln!("{}", WSError::InvalidDimension(dim_error));
+            eprintln!("{}", WallSwitchError::InvalidDimension(dim_error));
         }
 
         is_valid
@@ -87,7 +89,7 @@ impl FileInfo {
         let is_valid = self.path.file_name() != config.wallpaper.file_name();
 
         if !is_valid && let Some(path) = self.path.file_name() {
-            eprintln!("{}\n", WSError::InvalidFilename(path.into()));
+            eprintln!("{}\n", WallSwitchError::InvalidFilename(path.into()));
         }
 
         is_valid
@@ -102,7 +104,7 @@ pub trait FileInfoExt {
     fn get_max_dimension(&self) -> Option<u64>;
     fn sizes_are_valid(&self, config: &Config) -> bool;
     fn update_number(&mut self);
-    fn update_hash(&mut self) -> MyResult<()>;
+    fn update_hash(&mut self) -> WallSwitchResult<()>;
 }
 
 impl FileInfoExt for [FileInfo] {
@@ -139,8 +141,15 @@ impl FileInfoExt for [FileInfo] {
                 // Print Indented file information
                 print!("{}", SliceDisplay(self));
 
-                eprintln!("{}", WSError::InvalidSize(min_size, size, max_size));
-                eprintln!("{}\n", WSError::DisregardPath(path));
+                eprintln!(
+                    "{}",
+                    WallSwitchError::InvalidSize {
+                        min_size,
+                        size,
+                        max_size,
+                    }
+                );
+                eprintln!("{}\n", WallSwitchError::DisregardPath(path));
             }
 
             is_valid
@@ -157,11 +166,11 @@ impl FileInfoExt for [FileInfo] {
     }
 
     /// Update FileInfo hash field
-    fn update_hash(&mut self) -> MyResult<()> {
+    fn update_hash(&mut self) -> WallSwitchResult<()> {
         // Parallelize the computation using std::thread::scope
         thread::scope(|scope| {
             for file_info in self {
-                scope.spawn(move || -> MyResult<()> {
+                scope.spawn(move || -> WallSwitchResult<()> {
                     // let id = thread::current().id();
                     // println!("identifier thread: {id:?}");
 
@@ -187,7 +196,7 @@ impl FileInfoExt for [FileInfo] {
 /// If the same stream of bytes is fed into each hasher, the same output will also be generated.
 ///
 /// <https://doc.rust-lang.org/std/hash/trait.Hasher.html>
-pub fn get_hash(mut reader: impl Read) -> MyResult<String> {
+pub fn get_hash(mut reader: impl Read) -> WallSwitchResult<String> {
     let mut buffer = [0_u8; BUFFER_SIZE];
     let mut hasher = DefaultHasher::new();
 

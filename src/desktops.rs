@@ -1,7 +1,7 @@
 use crate::{
-    Config, FileInfo, MyResult,
+    Config, FileInfo,
     Orientation::{Horizontal, Vertical},
-    U8Extension,
+    U8Extension, WallSwitchResult,
 };
 use std::{
     // cmp::Ordering,
@@ -10,7 +10,7 @@ use std::{
 };
 
 /// Set desktop wallpaper
-pub fn set_wallpaper(images: &[FileInfo], config: &Config) -> MyResult<()> {
+pub fn set_wallpaper(images: &[FileInfo], config: &Config) -> WallSwitchResult<()> {
     let desktop = &config.desktop;
     // println!("desktop: {desktop}");
 
@@ -27,7 +27,7 @@ pub fn set_wallpaper(images: &[FileInfo], config: &Config) -> MyResult<()> {
     Ok(())
 }
 
-fn set_xfce_wallpaper(images: &[FileInfo], config: &Config) -> MyResult<()> {
+fn set_xfce_wallpaper(images: &[FileInfo], config: &Config) -> WallSwitchResult<()> {
     let monitors = get_xfce_monitors(config)?;
 
     if config.verbose {
@@ -55,7 +55,7 @@ fn set_xfce_wallpaper(images: &[FileInfo], config: &Config) -> MyResult<()> {
     ];
     ```
 */
-fn get_xfce_monitors(config: &Config) -> MyResult<Vec<String>> {
+fn get_xfce_monitors(config: &Config) -> WallSwitchResult<Vec<String>> {
     // Filter standard output that contains all these words
     let words = ["screen0", "workspace0", "last-image"];
 
@@ -82,7 +82,7 @@ fn get_xfce_monitors(config: &Config) -> MyResult<Vec<String>> {
     Ok(outputs)
 }
 
-fn apply_xfconf(path: &PathBuf, monitor: &str, config: &Config) -> MyResult<()> {
+fn apply_xfconf(path: &PathBuf, monitor: &str, config: &Config) -> WallSwitchResult<()> {
     let mut cmd = Command::new("xfconf-query");
     let xfconf = cmd
         .args(["--channel", "xfce4-desktop", "--property", monitor, "--set"])
@@ -95,7 +95,7 @@ fn apply_xfconf(path: &PathBuf, monitor: &str, config: &Config) -> MyResult<()> 
     Ok(())
 }
 
-fn set_openbox_wallpaper(images: &[FileInfo], config: &Config) -> MyResult<()> {
+fn set_openbox_wallpaper(images: &[FileInfo], config: &Config) -> WallSwitchResult<()> {
     let mut feh_cmd = Command::new(&config.path_feh);
 
     for image in images {
@@ -108,7 +108,7 @@ fn set_openbox_wallpaper(images: &[FileInfo], config: &Config) -> MyResult<()> {
 }
 
 /// Create a wallpaper file and set it as your desktop background image.
-fn set_gnome_wallpaper(images: &[FileInfo], config: &Config) -> MyResult<()> {
+fn set_gnome_wallpaper(images: &[FileInfo], config: &Config) -> WallSwitchResult<()> {
     // Create a wallpaper file with magick command line (ImageMagick).
     create_background_image(images, config)?;
 
@@ -178,12 +178,12 @@ magick -gravity Center \
 
 <https://www.imagemagick.org/script/command-line-processing.php>
 */
-fn create_background_image(images: &[FileInfo], config: &Config) -> MyResult<()> {
+fn create_background_image(images: &[FileInfo], config: &Config) -> WallSwitchResult<()> {
     let mut magick_cmd = Command::new(&config.path_magick);
 
     get_partitions_iter(images, config)
         .zip(&config.monitors)
-        .try_for_each(|(images, monitor)| -> MyResult<()> {
+        .try_for_each(|(images, monitor)| -> WallSwitchResult<()> {
             let mut width: u64 = monitor.resolution.width;
             let mut height: u64 = monitor.resolution.height;
 
@@ -289,7 +289,7 @@ fn get_partitions_iter<'a>(
 
 /// Executes the command as a child process,
 /// waiting for it to finish and collecting all of its output.
-pub fn exec_cmd(cmd: &mut Command, verbose: bool, msg: &str) -> MyResult<Output> {
+pub fn exec_cmd(cmd: &mut Command, verbose: bool, msg: &str) -> WallSwitchResult<Output> {
     let output: Output = cmd.output().inspect_err(|error| {
         eprintln!("fn exec_cmd()");
         eprintln!("cmd: {cmd:?}");

@@ -16,7 +16,7 @@ cargo b -r && cargo install --path=. --features args_v1
 cargo b -r && cargo install --path=. --features args_v2
 */
 
-fn main() -> MyResult<()> {
+fn main() -> WallSwitchResult<()> {
     let config = Config::new()?;
     show_initial_msgs(&config)?;
     kill_other_instances(&config)?;
@@ -62,7 +62,7 @@ fn main() -> MyResult<()> {
 
         // Make sure there are enough valid images
         if count == 0 {
-            Err(WSError::InsufficientNumber).unwrap_result()
+            Err(WallSwitchError::InsufficientNumber).unwrap_result()
         }
     }
 }

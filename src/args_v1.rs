@@ -1,7 +1,7 @@
 // use clap
 // cargo b -r && cargo install --path=. --features args_v1
 
-use crate::{MyResult, Orientation, get_config_path, read_config_file};
+use crate::{Orientation, WallSwitchResult, get_config_path, read_config_file};
 use anstyle::{
     AnsiColor::{Cyan, Green, Yellow},
     Color::Ansi,
@@ -228,7 +228,7 @@ pub struct Arguments {
 
 impl Arguments {
     /// Build Arguments struct
-    pub fn build() -> MyResult<Arguments> {
+    pub fn build() -> WallSwitchResult<Arguments> {
         let args: Arguments = Arguments::parse();
 
         if let Some(generator) = args.generator {

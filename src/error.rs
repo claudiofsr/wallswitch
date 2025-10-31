@@ -1,217 +1,246 @@
-// use colored::Colorize;
 use crate::{Colors, Dimension, Orientation};
 use std::{
-    error::Error,
-    fmt::{self, Debug},
     io,
-    num::TryFromIntError,
+    num::{ParseIntError, TryFromIntError},
     path::PathBuf,
+    string::FromUtf8Error,
 };
+use thiserror::Error;
+
+/**
+Result type to simplify function signatures.
+
+This is a custom result type that uses our custom `WallSwitchError` for the error type.
+
+Functions can return `WallSwitchResult<T>` and then use `?` to automatically propagate errors.
+*/
+pub type WallSwitchResult<T> = Result<T, WallSwitchError>;
 
 /// WallSwitch Error enum
 ///
-/// The `WSError` enum defines the error values
+/// The `WallSwitchError` enum defines the error values
 ///
 /// <https://doc.rust-lang.org/rust-by-example/error/multiple_error_types/define_error_type.html>
-#[derive(Debug)]
-pub enum WSError<'a> {
-    /// Unable to find
-    UnableToFind(&'a str),
-    /// Unable to obtain minimum value
-    MinValue,
-    /// Unable to obtain maximum value
-    MaxValue,
-    /// Directory path must exist
-    Parent(PathBuf),
-    /// Insufficient number of valid images
-    InsufficientNumber,
-    /// Try to performs the conversion
-    TryInto(String),
-    /// Invalid dimension
-    InvalidDimension(DimensionError),
-    /// Invalid orientation
-    InvalidOrientation,
-    /// Writing/Reading error
-    IOError(PathBuf, io::Error),
-    /// No images found
-    NoImages(Vec<PathBuf>),
-    /// Insufficient number of image files
-    InsufficientImages(Vec<PathBuf>, usize),
-    /// Minimum value > Maximum value
-    MinMax(u64, u64),
-    /// Missing value
-    MissingValue(&'a str),
-    /// Invalid value
-    InvalidValue(&'a str, String),
-    /// At least value
-    AtLeastValue(&'a str, String, u64),
-    /// At most value
-    AtMostValue(&'a str, String, u64),
-    /// Unexpected argument
-    UnexpectedArg(String),
-    /// Invalid file size
-    InvalidSize(u64, u64, u64),
-    /// Disregard the file path
+#[derive(Error, Debug)]
+pub enum WallSwitchError {
+    /// Error for command-line arguments that have invalid values.
+    #[error(
+        "{e}: '{a}' value '{v}' must be at least '{n}'. \
+        The condition ({v} >= {n}) is false.\n\n\
+        For more information, try '{h}'.",
+        e = "Error".red().bold(),
+        v = value.yellow(),
+        a = arg.yellow(),
+        n = num.green(),
+        h = "--help".green(),
+    )]
+    AtLeastValue {
+        arg: String,
+        value: String,
+        num: u64,
+    },
+
+    /// Error for command-line arguments that have values exceeding a maximum.
+    #[error(
+        "{e}: '{a}' value '{v}' must be at most '{n}'. \
+        The condition ({v} <= {n}) is false.\n\n\
+        For more information, try '{h}'.",
+        e = "Error".red().bold(),
+        v = value.yellow(),
+        a = arg.yellow(),
+        n = num.green(),
+        h = "--help".green(),
+    )]
+    AtMostValue {
+        arg: String,
+        value: String,
+        num: u64,
+    },
+
+    /// Error when an image path should be disregarded.
+    #[error("Disregard the path: '{p}'.", p = .0.display().yellow(),)]
     DisregardPath(PathBuf),
-    /// Invalid file name
+
+    /// Error when failing to convert byte output to a UTF-8 string.
+    #[error("Failed to convert command output to UTF-8: {0}")]
+    FromUtf8(#[from] FromUtf8Error),
+
+    /// Standard I/O error wrapper.
+    #[error("IO error: {0}")]
+    Io(#[from] io::Error),
+
+    /// Error when an image's dimensions are invalid.
+    #[error("{0}")]
+    InvalidDimension(#[from] DimensionError),
+
+    /// Error for file paths that have invalid filenames.
+    #[error(
+        "{e}: Invalid file name --> Disregard the path: '{p}'.",
+        e = "Error".red().bold(),
+        p = .0.display().yellow(),
+    )]
     InvalidFilename(PathBuf),
+
+    /// Error for image file sizes that are outside an allowed range.
+    #[error(
+        "{e}: invalid file size '{s}' bytes. \
+        The condition ({min} <= {s} <= {max}) is false.",
+        e = "Error".red().bold(),
+        min = min_size.green(),
+        max = max_size.green(),
+        s = size.yellow(),
+    )]
+    InvalidSize {
+        min_size: u64,
+        size: u64,
+        max_size: u64,
+    },
+
+    /// Error for command-line arguments that have invalid values.
+    #[error(
+        "{e}: invalid value '{v}' for '{a}'.\n\n\
+        For more information, try '{h}'.",
+        e = "Error".red().bold(),
+        v = value.yellow(),
+        a = arg.green(),
+        h = "--help".green(),
+    )]
+    InvalidValue { arg: String, value: String },
+
+    /// Error for I/O operations with an associated file path.
+    #[error("{e}: Failed to create file {path:?}\n{io_error}", e = "Error".red().bold())]
+    IOError {
+        path: PathBuf,
+        #[source]
+        io_error: io::Error,
+    },
+
+    /// Error when a JSON serialization or deserialization operation fails.
+    #[error("JSON serialization/deserialization error: {0}")]
+    Json(#[from] serde_json::Error),
+
+    /// Error when obtaining the maximum valid value for a parameter.
+    #[error("Unable to obtain maximum value!")]
+    MaxValue,
+
+    /// Error when obtaining the minimum valid value for a parameter.
+    #[error("Unable to obtain minimum value!")]
+    MinValue,
+
+    /// Error for command-line arguments that are missing required values.
+    #[error(
+        "{e}: missing value for '{a}'.\n\n\
+        For more information, try '{h}'.",
+        e = "Error".red().bold(),
+        a = arg.yellow(),
+        h = "--help".green(),
+    )]
+    MissingValue { arg: String },
+
+    /// Error for minimum value being greater than maximum value.
+    #[error(
+        "{e}: min ({min}) must be less than or equal to max ({max})\n\
+        The condition ({min} <= {max}) is false.",
+        e = "Error".red().bold()
+    )]
+    MinMax { min: u64, max: u64 },
+
+    /// Error when no valid images are found in specified directories.
+    #[error(
+        "{e}: no images found in image directories!\n\
+        directories: {paths:#?}",
+        e = "Error".red().bold(),
+    )]
+    NoImages { paths: Vec<PathBuf> },
+
+    /// Error for invalid image orientation (e.g., neither horizontal nor vertical).
+    #[error(
+        "invalid orientation.\n\n\
+        Valid options: [{h}, {v}]",
+        h = Orientation::Horizontal.green(),
+        v = Orientation::Vertical.green(),
+    )]
+    InvalidOrientation,
+
+    /// Error for an insufficient number of image files found.
+    #[error(
+        "{e}: insufficient number of image files!\n\
+        Found only {n} image file(s):\n\
+        {paths:#?}",
+        n = nfiles.yellow(),
+        e = "Error".red().bold(),
+    )]
+    InsufficientImages { paths: Vec<PathBuf>, nfiles: usize },
+
+    /// Error when an insufficient number of valid images are present.
+    #[error("Insufficient number of valid images!")]
+    InsufficientNumber,
+
+    /// Error when a directory path does not exist.
+    #[error("Wallpaper dir {0:?} does not exist.")]
+    Parent(PathBuf),
+
+    /// Error from a generic conversion attempt.
+    #[error("{0}")]
+    TryInto(String),
+
+    /// Error when a binary or resource cannot be found on the system.
+    #[error("Unable to find '{0}'!")]
+    UnableToFind(String),
+
+    /// Error for unexpected command-line arguments.
+    #[error(
+        "{e}: unexpected argument '{a}' found.\n\n\
+        For more information, try '{h}'.",
+        e = "Error".red().bold(),
+        a = arg.yellow(),
+        h = "--help".green(),
+    )]
+    UnexpectedArg { arg: String },
 }
 
-// Implement Display for WSError
-impl fmt::Display for WSError<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            WSError::UnableToFind(cmd) => write!(f, "Unable to find '{cmd}'!"),
-            WSError::MinValue => write!(f, "Unable to obtain minimum value!"),
-            WSError::MaxValue => write!(f, "Unable to obtain maximum value!"),
-            WSError::Parent(path) => write!(f, "Wallpaper dir {path:?} does not exist."),
-            WSError::InsufficientNumber => write!(f, "Insufficient number of valid images!"),
-            WSError::TryInto(err) => write!(f, "{err}"),
-            WSError::InvalidDimension(dim_error) => write!(f, "{dim_error}"),
-            WSError::InvalidOrientation => write!(
-                f,
-                "invalid orientation.\n\n\
-                Valid options: [{h}, {v}]",
-                h = Orientation::Horizontal.green(),
-                v = Orientation::Vertical.green(),
-            ),
-            WSError::IOError(path, io_error) => write!(
-                f,
-                "{e}: Failed to create file {path:?}\n{io_error}",
-                e = "Error".red().bold(),
-            ),
-            WSError::NoImages(paths) => write!(
-                f,
-                "{e}: no images found in image directories!\n\
-                directories: {paths:#?}",
-                e = "Error".red().bold(),
-            ),
-            WSError::InsufficientImages(paths, nfiles) => write!(
-                f,
-                "{e}: insufficient number of image files!\n\
-                Found only {n} image file(s):\n\
-                {paths:#?}",
-                n = nfiles.yellow(),
-                e = "Error".red().bold(),
-            ),
-            WSError::MinMax(min, max) => write!(
-                f,
-                "{e}: min ({min}) must be less than or equal to max ({max})\n\
-                The condition ({min} <= {max}) is false.",
-                e = "Error".red().bold()
-            ),
-            WSError::MissingValue(arg) => write!(
-                f,
-                "{e}: missing value for '{a}'.\n\n\
-                For more information, try '{h}'.",
-                e = "Error".red().bold(),
-                a = arg.yellow(),
-                h = "--help".green(),
-            ),
-            WSError::InvalidValue(arg, value) => write!(
-                f,
-                "{e}: invalid value '{v}' for '{a}'.\n\n\
-                For more information, try '{h}'.",
-                e = "Error".red().bold(),
-                v = value.yellow(),
-                a = arg.green(),
-                h = "--help".green(),
-            ),
-            WSError::AtLeastValue(arg, value, num) => write!(
-                f,
-                "{e}: '{a}' value '{v}' must be at least '{n}'. \
-                The condition ({v} >= {n}) is false.\n\n\
-                For more information, try '{h}'.",
-                e = "Error".red().bold(),
-                v = value.yellow(),
-                a = arg.yellow(),
-                n = num.green(),
-                h = "--help".green(),
-            ),
-            WSError::AtMostValue(arg, value, num) => write!(
-                f,
-                "{e}: '{a}' value '{v}' must be at most '{n}'. \
-                The condition ({v} <= {n}) is false.\n\n\
-                For more information, try '{h}'.",
-                e = "Error".red().bold(),
-                v = value.yellow(),
-                a = arg.yellow(),
-                n = num.green(),
-                h = "--help".green(),
-            ),
-            WSError::UnexpectedArg(arg) => write!(
-                f,
-                "{e}: unexpected argument '{a}' found.\n\n\
-                For more information, try '{h}'.",
-                e = "Error".red().bold(),
-                a = arg.yellow(),
-                h = "--help".green(),
-            ),
-            WSError::InvalidSize(min_size, size, max_size) => write!(
-                f,
-                "{e}: invalid file size '{s}' bytes. \
-                The condition ({min} <= {s} <= {max}) is false.",
-                e = "Error".red().bold(),
-                min = min_size.green(),
-                max = max_size.green(),
-                s = size.yellow(),
-            ),
-            WSError::DisregardPath(path) => {
-                write!(f, "Disregard the path: '{p}'.", p = path.display().yellow(),)
-            }
-            WSError::InvalidFilename(path) => write!(
-                f,
-                "{e}: Invalid file name --> Disregard the path: '{p}'.",
-                e = "Error".red().bold(),
-                p = path.display().yellow(),
-            ),
-        }
-    }
-}
-
-/// If we want to use std::error::Error in main, we need to implement it for WSError
-impl Error for WSError<'_> {}
-
-// Implementing the From trait for multiple types that you want to map into WSError.
+// Implementing the From trait for multiple types that you want to map into WallSwitchError.
 // https://stackoverflow.com/questions/62238827/less-verbose-type-for-map-err-closure-argument
-// let monitor: u8 = value.try_into().map_err(WSError::from)?;
+// let monitor: u8 = value.try_into().map_err(WallSwitchError::from)?;
 
-impl From<TryFromIntError> for WSError<'_> {
+impl From<TryFromIntError> for WallSwitchError {
     fn from(err: TryFromIntError) -> Self {
         Self::TryInto(err.to_string())
     }
 }
 
-/// Dimension Error
-#[derive(Debug)]
-pub struct DimensionError {
-    pub dimension: Dimension,
-    pub log_min: String,
-    pub log_max: String,
-    pub path: PathBuf,
-}
+#[derive(Error, Debug)]
+pub enum DimensionError {
+    #[error(
+        "{error}: invalid dimension '{dimension}'.\n\
+        {log_min}{log_max}\
+        Disregard the path: '{path}'\n",
+        error = "Error".red().bold(),
+        dimension = .dimension.yellow(),
+        log_min = .log_min,
+        log_max = .log_max,
+        path = .path.display().yellow(),
+    )]
+    DimensionFormatError {
+        dimension: Dimension,
+        log_min: String,
+        log_max: String,
+        path: PathBuf,
+    },
 
-impl fmt::Display for DimensionError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{error}: invalid dimension '{dimension}'.\n\
-            {log_min}{log_max}\
-            Disregard the path: '{path}'\n",
-            error = "Error".red().bold(),
-            dimension = self.dimension.yellow(),
-            log_min = self.log_min,
-            log_max = self.log_max,
-            path = self.path.display().yellow(),
-        )
-    }
-}
+    #[error("Invalid dimension format '{0}': failed to parse integer - {1}")]
+    InvalidParse(String, #[source] ParseIntError),
 
-impl Error for DimensionError {}
+    #[error("Invalid dimension format: expected two numbers (width x height)")]
+    InvalidFormat,
+
+    #[error("Zero is not a valid dimension component")]
+    ZeroDimension,
+}
 
 #[cfg(test)]
 mod error_tests {
-    use crate::{Colors, WSError};
+    use crate::{Colors, WallSwitchError};
     use std::path::PathBuf;
 
     #[test]
@@ -219,12 +248,13 @@ mod error_tests {
     fn test_error_display() {
         let path = PathBuf::from("/tmp");
         let text = format!("Disregard the path: '{}'.", path.display().yellow());
+        println!("text: {text}");
 
         assert_eq!(
-            WSError::InsufficientNumber.to_string(),
+            WallSwitchError::InsufficientNumber.to_string(),
             "Insufficient number of valid images!"
         );
 
-        assert_eq!(WSError::DisregardPath(path).to_string(), text);
+        assert_eq!(WallSwitchError::DisregardPath(path).to_string(), text);
     }
 }

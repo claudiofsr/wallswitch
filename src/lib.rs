@@ -32,17 +32,13 @@ cfg_if::cfg_if! {
 use std::{
     collections::HashMap,
     env,
-    error::Error,
     hash::{BuildHasher, Hasher, RandomState},
     path::PathBuf,
     thread,
 };
 
-pub type MyError = Box<dyn Error + Send + Sync>;
-pub type MyResult<T> = Result<T, MyError>;
-
 /// Show initial messages
-pub fn show_initial_msgs(config: &Config) -> MyResult<()> {
+pub fn show_initial_msgs(config: &Config) -> WallSwitchResult<()> {
     let pkg_name = ENVIRON.get_pkg_name();
     let pkg_desc = env!("CARGO_PKG_DESCRIPTION");
     let pkg_version = env!("CARGO_PKG_VERSION");
@@ -67,12 +63,12 @@ pub fn show_initial_msgs(config: &Config) -> MyResult<()> {
 }
 
 /// Get unique and random images/figures
-pub fn get_images(config: &Config) -> MyResult<Vec<FileInfo>> {
+pub fn get_images(config: &Config) -> WallSwitchResult<Vec<FileInfo>> {
     let mut images: Vec<FileInfo> = gather_files(config)?;
 
     if images.is_empty() {
         let directories = config.directories.clone();
-        let error = WSError::NoImages(directories);
+        let error = WallSwitchError::NoImages { paths: directories };
         eprintln!("{error}");
         //return Err(error.into());
         std::process::exit(1);
@@ -82,7 +78,10 @@ pub fn get_images(config: &Config) -> MyResult<Vec<FileInfo>> {
 
     if nimages < config.monitors.len() {
         let directories: Vec<PathBuf> = images.iter().map(|f| f.path.clone()).collect();
-        let error = WSError::InsufficientImages(directories, nimages);
+        let error = WallSwitchError::InsufficientImages {
+            paths: directories,
+            nfiles: nimages,
+        };
         eprintln!("{error}");
         //return Err(error.into());
         std::process::exit(1);
@@ -100,7 +99,7 @@ pub fn get_images(config: &Config) -> MyResult<Vec<FileInfo>> {
 /// Gather the files in `Vec<FileInfo>`
 ///
 /// Identical files (same hash) are disregarded
-fn gather_files(config: &Config) -> MyResult<Vec<FileInfo>> {
+fn gather_files(config: &Config) -> WallSwitchResult<Vec<FileInfo>> {
     let mut files: Vec<FileInfo> = Vec::new();
     let mut group_by: HashMap<String, Vec<PathBuf>> = HashMap::new();
 
@@ -177,9 +176,9 @@ pub fn get_random_integer(min: u64, max: u64) -> u64 {
 /// Generate a random integer value in the given range (min, max) inclusive.
 ///
 /// Return error if `min > max``
-pub fn get_random_integer_v2(min: u64, max: u64) -> MyResult<u64> {
+pub fn get_random_integer_v2(min: u64, max: u64) -> WallSwitchResult<u64> {
     if min > max {
-        Err(WSError::MinMax(min, max).into())
+        Err(WallSwitchError::MinMax { min, max })
     } else {
         // The remainder (`%`) after division is always less than the divisor.
         Ok(min + rand() % (max - min + 1))
@@ -225,7 +224,7 @@ pub fn update_images(files: &[FileInfo], config: &Config) -> Vec<FileInfo> {
 
     thread::scope(|scope| {
         for file in &mut owned_files {
-            scope.spawn(move || -> MyResult<()> {
+            scope.spawn(move || -> WallSwitchResult<()> {
                 //let id = thread::current().id();
                 //println!("identifier thread: {id:?}");
                 file.update_info(config)
@@ -247,7 +246,7 @@ pub fn update_images_v2(
         let mut threads = Vec::new();
 
         for file in &mut owned_files {
-            threads.push(scope.spawn(move || -> MyResult<()> {
+            threads.push(scope.spawn(move || -> WallSwitchResult<()> {
                 //let id = thread::current().id();
                 //println!("identifier thread: {id:?}");
                 file.update_info(config)
@@ -265,12 +264,12 @@ pub fn update_images_v2(
 pub fn update_images_v3(
     files: &[FileInfo],
     config: &Config,
-) -> MyResult<Vec<FileInfo>> {
+) -> WallSwitchResult<Vec<FileInfo>> {
     files
         .iter() // Sequential computing
         //.par_iter() // Parallelize the computation using rayon
         .cloned()
-        .map(|mut file| -> MyResult<FileInfo> {
+        .map(|mut file| -> WallSwitchResult<FileInfo> {
             //let thread = rayon::current_thread_index();
             //println!("rayon thread id {:?}", thread);
             file.update_info(config)?;
@@ -323,7 +322,7 @@ mod test_lib {
     /// `cargo test -- --show-output random_integers_v2`
     ///
     /// <https://stackoverflow.com/questions/48218459/how-do-i-generate-a-vector-of-random-numbers-in-a-range>
-    fn random_integers_v2() -> MyResult<()> {
+    fn random_integers_v2() -> WallSwitchResult<()> {
         // Example: Get a random integer value in the range 1 to 20:
         let value: u64 = get_random_integer_v2(1, 20)?;
 
@@ -350,7 +349,7 @@ mod test_lib {
 
     #[test]
     /// `cargo test -- --show-output random_integers_v3`
-    fn random_integers_v3() -> MyResult<()> {
+    fn random_integers_v3() -> WallSwitchResult<()> {
         let result = get_random_integer_v2(21, 20).map_err(|err| {
             eprintln!("{err}");
             err

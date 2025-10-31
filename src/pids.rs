@@ -1,8 +1,8 @@
-use crate::{Config, ENVIRON, MyResult, exec_cmd};
+use crate::{Config, ENVIRON, WallSwitchResult, exec_cmd};
 use std::process::Command;
 
 /// Killing the previous instances of `wallswitch` before running
-pub fn kill_other_instances(config: &Config) -> MyResult<()> {
+pub fn kill_other_instances(config: &Config) -> WallSwitchResult<()> {
     let pkg_name = ENVIRON.get_pkg_name();
     let current_pid: u32 = std::process::id();
     let pids: Vec<u32> = get_pids(pkg_name, config)?;
@@ -10,7 +10,7 @@ pub fn kill_other_instances(config: &Config) -> MyResult<()> {
     /*
     pids.into_iter()
         .filter(|&pid| pid != current_pid)
-        .try_for_each(|pid| -> MyResult<()> {
+        .try_for_each(|pid| -> WallSwitchResult<()> {
             println!("Killing previous instances: kill -9 {pid}\n");
             kill_app(pid)
         })?;
@@ -28,7 +28,7 @@ pub fn kill_other_instances(config: &Config) -> MyResult<()> {
     Ok(())
 }
 
-fn get_pids(pkg_name: &str, config: &Config) -> MyResult<Vec<u32>> {
+fn get_pids(pkg_name: &str, config: &Config) -> WallSwitchResult<Vec<u32>> {
     // pgrep -f wallswitch
     let mut cmd = Command::new("pgrep");
     let pgrep_cmd = cmd.arg("-f").arg(pkg_name);
@@ -68,7 +68,7 @@ fn bytes_to_numbers(bytes: &[u8]) -> Vec<u32> {
         .collect()
 }
 
-fn kill_app(pid_number: u32, config: &Config) -> MyResult<()> {
+fn kill_app(pid_number: u32, config: &Config) -> WallSwitchResult<()> {
     // kill -9 pid_number
     let mut cmd = Command::new("kill");
     let kill = cmd.arg("-9").arg(pid_number.to_string());

@@ -1,4 +1,4 @@
-use crate::{Config, FileInfo, MyResult};
+use crate::{Config, FileInfo, WallSwitchResult};
 //use rayon::prelude::*;
 use std::path::Path;
 use walkdir::{DirEntry, WalkDir};
@@ -6,7 +6,7 @@ use walkdir::{DirEntry, WalkDir};
 /// Get all files into one vector.
 ///
 /// Use walkdir.
-pub fn get_files_from_directory<P>(path: P, config: &Config) -> MyResult<Vec<FileInfo>>
+pub fn get_files_from_directory<P>(path: P, config: &Config) -> WallSwitchResult<Vec<FileInfo>>
 where
     P: AsRef<Path>,
 {
@@ -32,7 +32,7 @@ where
 }
 
 /// Get result: Vec<DirEntry>.
-fn get_image_entries<P>(path: P, config: &Config) -> MyResult<Vec<DirEntry>>
+fn get_image_entries<P>(path: P, config: &Config) -> WallSwitchResult<Vec<DirEntry>>
 where
     P: AsRef<Path>,
 {

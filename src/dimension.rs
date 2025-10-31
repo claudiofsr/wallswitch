@@ -1,6 +1,8 @@
-use crate::{Colors, Config, Countable, MyResult, ResultExt};
+use crate::{
+    Colors, Config, Countable, DimensionError, ResultExt, WallSwitchError, WallSwitchResult,
+};
 use serde::{Deserialize, Serialize};
-use std::{error::Error, fmt, num::ParseIntError};
+use std::{fmt, num::ParseIntError};
 
 /// Dimension - width and length - of an image.
 ///
@@ -25,7 +27,7 @@ impl Default for Dimension {
 
 impl Dimension {
     /// Get an instance of Dimension by specifying concrete values ​​for each of the fields.
-    pub fn new(string: &str) -> MyResult<Dimension> {
+    pub fn new(string: &str) -> WallSwitchResult<Dimension> {
         let numbers: Vec<u64> = split_str(string).unwrap_result();
         let (width, height) = (numbers[0], numbers[1]);
         Ok(Dimension { width, height })
@@ -99,9 +101,9 @@ Split string into two numbers
 
 Example:
 ```
-use wallswitch::{split_str, MyResult};
+use wallswitch::{split_str, WallSwitchResult};
 
-fn main() -> MyResult<()> {
+fn main() -> WallSwitchResult<()> {
     let string1: &str = "123x4567";
     let string2: &str = " 123 x 4567 \n";
 
@@ -115,51 +117,35 @@ fn main() -> MyResult<()> {
 }
 ```
 */
-pub fn split_str(string: &str) -> MyResult<Vec<u64>> {
+pub fn split_str(string: &str) -> WallSwitchResult<Vec<u64>> {
     let numbers: Vec<u64> = string
         .split('x')
         .map(|s| s.trim().parse::<u64>())
         .collect::<Result<Vec<u64>, ParseIntError>>()
         .map_err(|parse_error| {
-            // Add a custom error message
-            DimError::InvalidParse(string.to_string(), parse_error)
+            // Corrected: Directly return DimensionError, which WallSwitchError can convert from
+            WallSwitchError::InvalidDimension(DimensionError::InvalidParse(
+                string.to_string(),
+                parse_error,
+            ))
         })?;
 
     if numbers.len() != 2 {
-        return Err(Box::new(DimError::InvalidFormat));
+        // Corrected: Directly return DimensionError, which WallSwitchError can convert from
+        return Err(WallSwitchError::InvalidDimension(
+            DimensionError::InvalidFormat,
+        ));
     }
 
     if numbers.contains(&0) {
-        return Err(Box::new(DimError::ZeroDimension));
+        // Corrected: Directly return DimensionError, which WallSwitchError can convert from
+        return Err(WallSwitchError::InvalidDimension(
+            DimensionError::ZeroDimension,
+        ));
     }
 
     Ok(numbers)
 }
-
-#[derive(Debug)]
-enum DimError {
-    /// Parse InvalidFormat
-    InvalidFormat,
-    /// Parse ZeroDimension
-    ZeroDimension,
-    /// Parse InvalidParse
-    InvalidParse(String, ParseIntError),
-}
-
-impl std::fmt::Display for DimError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            DimError::InvalidParse(string, parse_error) => {
-                write!(f, "Error: '{string}' split failed!\n{parse_error}",)
-            }
-            DimError::InvalidFormat => write!(f, "Invalid format: expected 'heightxwidth'."),
-            DimError::ZeroDimension => write!(f, "Width or height cannot be zero."),
-        }
-    }
-}
-
-/// If we want to use std::error::Error in main, we need to implement it for DimError
-impl Error for DimError {}
 
 #[cfg(test)]
 mod test_dimension {
@@ -190,22 +176,35 @@ mod test_dimension {
     fn split_str_sample_2() {
         let string = "x4567";
 
-        let result: MyResult<Vec<u64>> = split_str(string);
+        let result: WallSwitchResult<Vec<u64>> = split_str(string);
         dbg!(&result);
 
         let result_to_string: Result<Vec<u64>, String> =
             split_str(string).map_err(|e| e.to_string());
         dbg!(&result_to_string);
 
-        let opt_error: String = result_to_string.unwrap_err().to_string();
-        let parse_error = "cannot parse integer from empty string";
-        let output = format!("Error: '{string}' split failed!\n{parse_error}",);
+        let opt_error: String = result_to_string.unwrap_err();
 
-        let error = split_str(string).unwrap_err();
-        assert!(error.is::<DimError>());
+        let expected_exact_error_message = format!(
+            "Invalid dimension format '{string}': failed to parse integer - cannot parse integer from empty string"
+        );
 
+        // Assert that the result is an error
         assert!(result.is_err());
-        assert_eq!(opt_error, output);
+
+        // Pattern match to check the specific error variant
+        match result.unwrap_err() {
+            WallSwitchError::InvalidDimension(DimensionError::InvalidParse(err_string, _)) => {
+                assert_eq!(err_string, string);
+            }
+            other_error => panic!(
+                "Expected InvalidDimension(InvalidParse), but got: {:?}",
+                other_error
+            ),
+        }
+
+        // Compare the full error string exactly
+        assert_eq!(opt_error, expected_exact_error_message);
     }
 
     #[test]
@@ -213,22 +212,44 @@ mod test_dimension {
     fn split_str_sample_3() {
         let string = "12ab3x4567";
 
-        let result: MyResult<Vec<u64>> = split_str(string);
+        let result: WallSwitchResult<Vec<u64>> = split_str(string);
         dbg!(&result);
 
+        // Using `map_err` to convert to a String for comparison, which is fine
         let result_to_string: Result<Vec<u64>, String> =
             split_str(string).map_err(|e| e.to_string());
         dbg!(&result_to_string);
 
-        let opt_error: String = result_to_string.unwrap_err().to_string();
-        let parse_error = "invalid digit found in string";
-        let output = format!("Error: '{string}' split failed!\n{parse_error}",);
+        let opt_error: String = result_to_string.unwrap_err(); // .to_string() is already done in map_err
+        let parse_error_reason = "invalid digit found in string"; // The actual ParseIntError message
+        let expected_output_part = format!(
+            "Invalid dimension format '{string}': failed to parse integer - {parse_error_reason}"
+        );
 
-        let error = split_str(string).unwrap_err();
-        assert!(error.is::<DimError>());
-
+        // Assert that the result is an error
         assert!(result.is_err());
-        assert_eq!(opt_error, output);
+
+        // Pattern match to check the specific error variant
+        // We expect WallSwitchError::InvalidDimension wrapping DimensionError::InvalidParse
+        match result.unwrap_err() {
+            WallSwitchError::InvalidDimension(DimensionError::InvalidParse(
+                err_string,
+                parse_err,
+            )) => {
+                // Check if the contained string matches expectations
+                assert_eq!(err_string, string);
+                // Check the underlying ParseIntError's message
+                assert_eq!(parse_err.to_string(), parse_error_reason);
+            }
+            other_error => panic!(
+                "Expected InvalidDimension(InvalidParse), but got: {:?}",
+                other_error
+            ),
+        }
+
+        // Compare the full error string from .to_string()
+        // Using contains as the error message might include more details than just `output`
+        assert!(opt_error.contains(&expected_output_part));
     }
 
     #[test]
@@ -241,7 +262,7 @@ mod test_dimension {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err().to_string(),
-            "Invalid format: expected 'heightxwidth'."
+            "Invalid dimension format: expected two numbers (width x height)"
         );
     }
 
@@ -255,7 +276,7 @@ mod test_dimension {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err().to_string(),
-            "Width or height cannot be zero."
+            "Zero is not a valid dimension component"
         );
     }
 }

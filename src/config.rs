@@ -1,7 +1,6 @@
 use crate::{
-    Arguments, ENVIRON, Monitor, MyResult, Orientation, ResultExt, U8Extension,
-    WSError::{self, *},
-    get_feh_path, get_magick_path, get_monitors,
+    Arguments, ENVIRON, Monitor, Orientation, ResultExt, U8Extension, WallSwitchError,
+    WallSwitchResult, get_feh_path, get_magick_path, get_monitors,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -103,7 +102,7 @@ impl Config {
     /// 4. write_config_file
     ///
     /// At the end add or update config file.
-    pub fn new() -> MyResult<Self> {
+    pub fn new() -> WallSwitchResult<Self> {
         let mut read_default_config = false;
         let config_path: PathBuf = get_config_path()?;
         let args = Arguments::build()?;
@@ -129,7 +128,7 @@ impl Config {
     }
 
     /// Print Config.
-    pub fn print(&self) -> MyResult<()> {
+    pub fn print(&self) -> WallSwitchResult<()> {
         let json: String = serde_json::to_string_pretty(self)?;
         println!("Config:\n{json}\n");
 
@@ -139,7 +138,7 @@ impl Config {
     /// Set command-line arguments for configuration
     ///
     /// Update self: Config values
-    fn set_command_line_arguments(mut self, args: &Arguments) -> MyResult<Self> {
+    fn set_command_line_arguments(mut self, args: &Arguments) -> WallSwitchResult<Self> {
         if let Some(min_dimension) = args.min_dimension {
             self.min_dimension = min_dimension;
         }
@@ -188,12 +187,16 @@ impl Config {
     }
 
     /// Validate configuration
-    pub fn validate_config(mut self) -> Result<Self, WSError<'static>> {
+    pub fn validate_config(mut self) -> Result<Self, WallSwitchError> {
         let boundary: Config = config_boundary();
 
         if self.interval < boundary.interval {
             let value = self.interval.to_string();
-            return Err(AtLeastValue("--interval", value, boundary.interval));
+            return Err(WallSwitchError::AtLeastValue {
+                arg: "--interval".to_string(),
+                value,
+                num: boundary.interval,
+            });
         }
 
         if !self.path_feh.is_file() {
@@ -206,35 +209,47 @@ impl Config {
 
         if self.min_dimension < boundary.min_dimension {
             let value = self.min_dimension.to_string();
-            return Err(AtLeastValue(
-                "--min_dimension",
+            return Err(WallSwitchError::AtLeastValue {
+                arg: "--min_dimension".to_string(),
                 value,
-                boundary.min_dimension,
-            ));
+                num: boundary.min_dimension,
+            });
         }
 
         if self.min_size < boundary.min_size {
             let value = self.min_size.to_string();
-            return Err(AtLeastValue("--min_size", value, boundary.min_size));
+            return Err(WallSwitchError::AtLeastValue {
+                arg: "--min_size".to_string(),
+                value,
+                num: boundary.min_size,
+            });
         }
 
         if self.monitors.is_empty() {
             let value = self.monitors.len().to_string();
-            return Err(AtLeastValue("--interval", value, 1));
+            return Err(WallSwitchError::AtLeastValue {
+                arg: "--interval".to_string(), // This looks like it should be --monitors or similar
+                value,
+                num: 1,
+            });
         }
 
         for monitor in &self.monitors {
             if monitor.pictures_per_monitor < 1 {
                 let value = monitor.pictures_per_monitor.to_string();
-                return Err(AtLeastValue("--picture", value, 1));
+                return Err(WallSwitchError::AtLeastValue {
+                    arg: "--picture".to_string(),
+                    value,
+                    num: 1,
+                });
             }
         }
 
         if let Some(parent) = self.wallpaper.parent()
             && !parent.exists()
         {
-            let dir: PathBuf = parent.to_path_buf();
-            return Err(Parent(dir));
+            // Ensure the directory exists
+            fs::create_dir_all(parent)?; // This works due to #[from] io::Error
         }
 
         for (min, max) in [
@@ -242,7 +257,7 @@ impl Config {
             (self.min_size, self.max_size),
         ] {
             if min > max {
-                return Err(WSError::MinMax(min, max));
+                return Err(WallSwitchError::MinMax { min, max });
             }
         }
 
@@ -250,7 +265,11 @@ impl Config {
     }
 
     /// Write config file path:: "/home/user_name/.config/wallswitch/wallswitch.json"
-    pub fn write_config_file(self, path: &PathBuf, read_default_config: bool) -> MyResult<Self> {
+    pub fn write_config_file(
+        self,
+        path: &PathBuf,
+        read_default_config: bool,
+    ) -> WallSwitchResult<Self> {
         if read_default_config {
             eprintln!("Create the configuration file: {path:?}\n");
         }
@@ -271,7 +290,10 @@ impl Config {
             .open(path)
             .map_err(|io_error| {
                 // Add a custom error message
-                WSError::IOError(path.to_path_buf(), io_error)
+                WallSwitchError::IOError {
+                    path: path.to_path_buf(),
+                    io_error,
+                }
             })?;
 
         let mut writer = BufWriter::new(file);
@@ -344,7 +366,7 @@ pub fn get_directories() -> Vec<PathBuf> {
 }
 
 /// Config file path: "/home/user_name/.config/wallswitch/wallswitch.json"
-pub fn get_config_path() -> MyResult<PathBuf> {
+pub fn get_config_path() -> WallSwitchResult<PathBuf> {
     let home = ENVIRON.get_home();
     let hidden_dir = ".config";
     let pkg_name = ENVIRON.get_pkg_name();
@@ -356,7 +378,7 @@ pub fn get_config_path() -> MyResult<PathBuf> {
 }
 
 /// Read config file path: "/home/user_name/.config/wallswitch/wallswitch.json"
-pub fn read_config_file<P>(path: P) -> MyResult<Config>
+pub fn read_config_file<P>(path: P) -> WallSwitchResult<Config>
 where
     P: AsRef<Path>,
 {

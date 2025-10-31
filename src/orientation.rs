@@ -1,4 +1,4 @@
-use crate::WSError;
+use crate::WallSwitchError;
 use serde::{Deserialize, Serialize};
 use std::{fmt, str::FromStr};
 
@@ -19,13 +19,13 @@ impl fmt::Display for Orientation {
 }
 
 impl FromStr for Orientation {
-    type Err = WSError<'static>;
+    type Err = WallSwitchError;
 
-    fn from_str(s: &str) -> Result<Self, WSError<'static>> {
+    fn from_str(s: &str) -> Result<Self, WallSwitchError> {
         match s.trim().to_lowercase().as_str() {
             "horizontal" => Ok(Self::Horizontal),
             "vertical" => Ok(Self::Vertical),
-            _ => Err(WSError::InvalidOrientation),
+            _ => Err(WallSwitchError::InvalidOrientation),
         }
     }
 }
