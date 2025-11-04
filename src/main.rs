@@ -1,4 +1,4 @@
-use std::{thread::sleep, time::Duration};
+use std::{process, thread::sleep, time::Duration};
 use wallswitch::*;
 
 /*
@@ -16,7 +16,24 @@ cargo b -r && cargo install --path=. --features args_v1
 cargo b -r && cargo install --path=. --features args_v2
 */
 
-fn main() -> WallSwitchResult<()> {
+fn main() {
+    // Call the separate function that contains the main logic and can return Result
+    let run_result = run();
+
+    // Now handle the result returned by the 'run' function
+    // If Error, terminate the current process with error messages.
+    match run_result {
+        Ok(_) => {
+            process::exit(0); // Explicitly exit with success code
+        }
+        Err(error) => {
+            eprintln!("{error}"); // Using Display prints the #[error] message
+            process::exit(1); // Explicitly exit with failure code
+        }
+    }
+}
+
+fn run() -> WallSwitchResult<()> {
     let config = Config::new()?;
     show_initial_msgs(&config)?;
     kill_other_instances(&config)?;
@@ -62,7 +79,7 @@ fn main() -> WallSwitchResult<()> {
 
         // Make sure there are enough valid images
         if count == 0 {
-            Err(WallSwitchError::InsufficientNumber).unwrap_result()
+            return Err(WallSwitchError::InsufficientNumber);
         }
     }
 }

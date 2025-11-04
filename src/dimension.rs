@@ -1,6 +1,4 @@
-use crate::{
-    Colors, Config, Countable, DimensionError, ResultExt, WallSwitchError, WallSwitchResult,
-};
+use crate::{Colors, Config, Countable, DimensionError, WallSwitchError, WallSwitchResult};
 use serde::{Deserialize, Serialize};
 use std::{fmt, num::ParseIntError};
 
@@ -28,7 +26,7 @@ impl Default for Dimension {
 impl Dimension {
     /// Get an instance of Dimension by specifying concrete values ​​for each of the fields.
     pub fn new(string: &str) -> WallSwitchResult<Dimension> {
-        let numbers: Vec<u64> = split_str(string).unwrap_result();
+        let numbers: Vec<u64> = split_str(string)?;
         let (width, height) = (numbers[0], numbers[1]);
         Ok(Dimension { width, height })
     }

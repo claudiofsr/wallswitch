@@ -8,7 +8,7 @@ use std::{
 };
 
 use crate::{
-    ENVIRON, Orientation, ResultExt,
+    ENVIRON, Orientation,
     WallSwitchError::{self, *},
     WallSwitchResult, get_config_path, read_config_file,
 };
@@ -87,7 +87,7 @@ pub struct Arguments {
 impl Arguments {
     /// Parses command-line arguments and builds an `Arguments` struct.
     pub fn build() -> WallSwitchResult<Arguments> {
-        let args = Arguments::parse(std::env::args()).unwrap_result();
+        let args = Arguments::parse(std::env::args())?;
 
         if args.config {
             let config_path = get_config_path()?;

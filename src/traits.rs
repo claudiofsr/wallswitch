@@ -1,4 +1,4 @@
-use std::fmt::{self, Debug, Display};
+use std::fmt::{Debug, Display};
 
 // https://gist.github.com/abritinthebay/d80eb99b2726c83feb0d97eab95206c4
 // https://talyian.github.io/ansicolors/
@@ -141,26 +141,6 @@ where
 {
     fn count_chars(&self) -> usize {
         self.to_string().chars().count()
-    }
-}
-
-/// Result Extension
-pub trait ResultExt<T> {
-    /// If OK, unwrap Result<T, Error> to the value T.
-    ///
-    /// If Error, terminate the current process with error messages.
-    fn unwrap_result(self) -> T;
-}
-
-impl<T, E: fmt::Display> ResultExt<T> for Result<T, E> {
-    fn unwrap_result(self) -> T {
-        match self {
-            Ok(value) => value,
-            Err(error) => {
-                eprintln!("{error}");
-                std::process::exit(1);
-            }
-        }
     }
 }
 

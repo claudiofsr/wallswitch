@@ -1,6 +1,6 @@
 use crate::{
-    Arguments, ENVIRON, Monitor, Orientation, ResultExt, U8Extension, WallSwitchError,
-    WallSwitchResult, get_feh_path, get_magick_path, get_monitors,
+    Arguments, ENVIRON, Monitor, Orientation, U8Extension, WallSwitchError, WallSwitchResult,
+    get_feh_path, get_magick_path, get_monitors,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -115,8 +115,7 @@ impl Config {
             }
         }
         .set_command_line_arguments(&args)?
-        .validate_config()
-        .unwrap_result()
+        .validate_config()?
         .write_config_file(&config_path, read_default_config)?;
 
         Ok(config)
