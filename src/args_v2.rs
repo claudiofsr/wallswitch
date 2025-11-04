@@ -8,9 +8,9 @@ use std::{
 };
 
 use crate::{
-    ENVIRON, MyResult, Orientation, ResultExt,
-    WSError::{self, *},
-    get_config_path, read_config_file,
+    ENVIRON, Orientation, ResultExt,
+    WallSwitchError::{self, *},
+    WallSwitchResult, get_config_path, read_config_file,
 };
 
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
@@ -86,7 +86,7 @@ pub struct Arguments {
 
 impl Arguments {
     /// Parses command-line arguments and builds an `Arguments` struct.
-    pub fn build() -> MyResult<Arguments> {
+    pub fn build() -> WallSwitchResult<Arguments> {
         let args = Arguments::parse(std::env::args()).unwrap_result();
 
         if args.config {
@@ -103,7 +103,7 @@ impl Arguments {
     /// Parses command-line arguments into an `Arguments` struct.
     ///
     /// <https://stackoverflow.com/questions/51119143/how-do-i-check-the-second-element-of-the-command-line-arguments>
-    fn parse(args: impl Iterator<Item = String>) -> Result<Self, WSError<'static>> {
+    fn parse(args: impl Iterator<Item = String>) -> WallSwitchResult<Self> {
         let mut arguments = Arguments::default();
 
         let args: Vec<String> = get_formatted_args(args);
@@ -139,7 +139,7 @@ impl Arguments {
                 }
                 "--monitor" | "-m" => {
                     let value: u64 = parse_value(iter.next(), "--monitor", 1)?;
-                    let monitor: u8 = value.try_into().map_err(WSError::from)?;
+                    let monitor: u8 = value.try_into().map_err(WallSwitchError::from)?;
                     arguments.monitor = Some(monitor)
                 }
                 "--orientation" | "-o" => {
@@ -148,7 +148,8 @@ impl Arguments {
                 }
                 "--pictures_per_monitor" | "-p" => {
                     let value: u64 = parse_value(iter.next(), "--pictures_per_monitor", 1)?;
-                    let pictures_per_monitor: u8 = value.try_into().map_err(WSError::from)?;
+                    let pictures_per_monitor: u8 =
+                        value.try_into().map_err(WallSwitchError::from)?;
                     arguments.pictures_per_monitor = Some(pictures_per_monitor)
                 }
                 "--config" | "-c" => arguments.config = true,
@@ -156,7 +157,7 @@ impl Arguments {
                 "--sort" | "-s" => arguments.sort = true,
                 "--verbose" | "-v" => arguments.verbose = true,
                 "--Version" | "-V" => show_version(),
-                _ => return Err(UnexpectedArg(current)),
+                _ => return Err(UnexpectedArg { arg: current }),
             }
         }
 
@@ -193,21 +194,26 @@ fn get_formatted_args(args: impl Iterator<Item = String>) -> Vec<String> {
 /// Minimum interval should be at least 5 seconds
 ///
 /// Monitor number should be at least 1
-fn parse_value(
-    opt_value: Option<String>,
-    name: &'static str,
-    min: u64,
-) -> Result<u64, WSError<'static>> {
+fn parse_value(opt_value: Option<String>, name: &'static str, min: u64) -> WallSwitchResult<u64> {
     if let Some(value) = opt_value {
         // println!("value: {value}");
         match value.parse::<u64>() {
             // num value should be at least min: num >= min
             Ok(num) if num >= min => Ok(num),
-            Ok(_) => Err(AtLeastValue(name, value, min)),
-            Err(_) => Err(InvalidValue(name, value)),
+            Ok(_) => Err(AtLeastValue {
+                arg: name.to_string(),
+                value,
+                num: min,
+            }),
+            Err(_) => Err(InvalidValue {
+                arg: name.to_string(),
+                value,
+            }),
         }
     } else {
-        Err(MissingValue(name))
+        Err(MissingValue {
+            arg: name.to_string(),
+        })
     }
 }
 
@@ -215,11 +221,13 @@ fn parse_value(
 fn parse_orientation(
     opt_string: Option<String>,
     name: &'static str,
-) -> Result<Orientation, WSError<'static>> {
+) -> WallSwitchResult<Orientation> {
     if let Some(string) = opt_string {
         Orientation::from_str(&string)
     } else {
-        Err(MissingValue(name))
+        Err(MissingValue {
+            arg: name.to_string(),
+        })
     }
 }
 
@@ -269,7 +277,7 @@ fn show_version() {
 
 #[cfg(test)]
 mod test_args_v2 {
-    use crate::{Arguments, MyResult, Orientation};
+    use crate::{Arguments, Orientation, WallSwitchResult};
 
     // cargo test -- --help
     // cargo test -- --nocapture get_arguments
@@ -277,7 +285,7 @@ mod test_args_v2 {
 
     #[test]
     /// `cargo test --features args_v2 -- --show-output get_arguments`    
-    fn get_arguments() -> MyResult<()> {
+    fn get_arguments() -> WallSwitchResult<()> {
         let entries = [
             "program_name",
             "-i",
@@ -330,7 +338,7 @@ mod test_args_v2 {
 
     #[test]
     /// `cargo test --features args_v2 -- --show-output split_arg_equal`
-    fn split_arg_equal() -> MyResult<()> {
+    fn split_arg_equal() -> WallSwitchResult<()> {
         let arg = "Löwe 老虎 Léo=öpard Gepa12345虎==rdi".to_string();
         println!("arg: {arg}");
 
@@ -356,7 +364,7 @@ mod test_args_v2 {
 
     #[test]
     /// `cargo test --features args_v2 -- --show-output split_arg_digit`
-    fn split_arg_digit() -> MyResult<()> {
+    fn split_arg_digit() -> WallSwitchResult<()> {
         let arg = "Löwe 老虎 Léo=pard Gepa12345虎rdi".to_string();
         println!("arg: {arg}");
 

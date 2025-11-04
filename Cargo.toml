@@ -2,7 +2,7 @@
 name = "wallswitch"
 description = "randomly selects wallpapers for multiple monitors"
 authors = ["Claudio F S Rodrigues <claudiofsrodrigues@gmail.com>"]
-version = "0.53.1"
+version = "0.53.2"
 repository = "https://github.com/claudiofsr/wallswitch"
 homepage = "https://github.com/claudiofsr/wallswitch"
 documentation = "https://docs.rs/wallswitch"
@@ -33,7 +33,7 @@ clap = { version = "4.5", features = ["derive", "color"], optional = true }
 clap_complete = { version = "4.5", optional = true }
 
 [features]
-default = ["args_v1"]
+default = ["args_v2"]
 
 args_v1 = ["dep:anstyle", "dep:clap", "dep:clap_complete"]
 args_v2 = []
