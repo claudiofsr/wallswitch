@@ -35,8 +35,13 @@ fn run() -> WallSwitchResult<()> {
     show_initial_msgs(&config)?; // Display startup messages.
     kill_other_instances(&config)?; // Terminate other running instances.
 
-    loop {
-        try_run_cycle(&config)?; // Execute one wallpaper update cycle.
+    if config.once {
+        try_run_cycle(&config)
+    } else {
+        loop {
+            // Execute one wallpaper update cycle.
+            try_run_cycle(&config)?; // Loop infinito original.
+        }
     }
 }
 
@@ -86,8 +91,13 @@ fn try_run_cycle(config: &Config) -> WallSwitchResult<()> {
         }
 
         set_wallpaper(&figures, config)?;
-        sleep(Duration::from_secs(config.interval));
         count += 1;
+
+        if config.once {
+            break 'next_chunk;
+        }
+
+        sleep(Duration::from_secs(config.interval));
     }
 
     // Make sure there are enough valid images

@@ -32,6 +32,8 @@ pub struct Config {
     pub monitors: Vec<Monitor>,
     /// Attach images to monitors in the Horizontal or Vertical orientation
     pub monitor_orientation: Orientation,
+    /// Run a single wallpaper update cycle and exit.
+    pub once: bool,
     /// feh binary path
     pub path_feh: PathBuf,
     /// magick binary path
@@ -73,6 +75,7 @@ impl Default for Config {
             interval,
             monitors: get_monitors(2),
             monitor_orientation: Orientation::Horizontal,
+            once: false,
             path_feh: PathBuf::from("/usr/bin/feh"),
             path_magick: PathBuf::from("/usr/bin/magick"),
             sort: false,
@@ -171,6 +174,8 @@ impl Config {
                 monitor.pictures_per_monitor = pictures_per_monitor;
             }
         }
+
+        self.once = args.once;
 
         if args.sort {
             self.sort = !self.sort;

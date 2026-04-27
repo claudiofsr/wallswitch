@@ -153,6 +153,14 @@ pub enum WallSwitchError {
     )]
     NoImages { paths: Vec<PathBuf> },
 
+    /// Error for no active monitors detected
+    #[error(
+        "{e}: no active monitors detected via '{tool}'!",
+        e = "Error".red().bold(),
+        tool = .0.yellow(),
+    )]
+    NoMonitors(String),
+
     /// Error for invalid image orientation (e.g., neither horizontal nor vertical).
     #[error(
         "invalid orientation.\n\n\

@@ -63,6 +63,9 @@ pub struct Arguments {
     /// Default orientation: Horizontal.
     pub monitor_orientation: Option<Orientation>,
 
+    /// Run a single wallpaper update cycle and exit.
+    pub once: bool,
+
     /// Set number of pictures (or images) per monitor [default: 1]
     ///
     /// Each monitor can have a diferent number of pictures (or images)
@@ -155,6 +158,7 @@ impl Arguments {
                 "--config" | "-c" => arguments.config = true,
                 "--help" | "-h" => show_help_summary(),
                 "--sort" | "-s" => arguments.sort = true,
+                "--once" => arguments.once = true,
                 "--verbose" | "-v" => arguments.verbose = true,
                 "--Version" | "-V" => show_version(),
                 _ => return Err(UnexpectedArg { arg: current }),
@@ -259,6 +263,7 @@ fn show_help_summary() {
     println!(
         "-o, --orientation <ORIENTATION>\n\tInform monitor orientation: Horizontal (side-by-side) or Vertical (stacked)."
     );
+    println!("--once\n\tRun a single wallpaper update cycle and exit");
     println!(
         "-p, --pictures_per_monitor <PICTURE>\n\tSet number of pictures (or images) per monitor [default: 1]"
     );

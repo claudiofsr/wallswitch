@@ -1,7 +1,7 @@
 use crate::{
     Config, FileInfo,
     Orientation::{Horizontal, Vertical},
-    U8Extension, WallSwitchResult,
+    U8Extension, WallSwitchError, WallSwitchResult,
 };
 use std::{
     // cmp::Ordering,
@@ -11,20 +11,108 @@ use std::{
 
 /// Set desktop wallpaper
 pub fn set_wallpaper(images: &[FileInfo], config: &Config) -> WallSwitchResult<()> {
-    let desktop = &config.desktop;
-    // println!("desktop: {desktop}");
+    let desktop = &config.desktop.to_lowercase(); // Usar lowercase para evitar erros de match
 
     if desktop.contains("gnome") {
         set_gnome_wallpaper(images, config)?;
     } else if desktop.contains("xfce") {
         set_xfce_wallpaper(images, config)?;
+    } else if desktop.contains("hyprland") {
+        set_hyprland_wallpaper(images, config)?;
     } else {
         set_openbox_wallpaper(images, config)?;
     }
 
     println!();
+    Ok(())
+}
+
+/// Set wallpaper for Hyprland desktop using hyprpaper via hyprctl.
+fn set_hyprland_wallpaper(images: &[FileInfo], config: &Config) -> WallSwitchResult<()> {
+    let monitors = get_hyprland_monitors(config)?;
+
+    if config.verbose {
+        println!("Hyprland monitors found: {monitors:?}");
+    }
+
+    // 1. Check if hyprpaper daemon is running by listing loaded images.
+    // If the command fails, the daemon is likely not started.
+    let list_loaded = Command::new("hyprctl")
+        .args(["hyprpaper", "listloaded"])
+        .output();
+
+    let loaded_str = match list_loaded {
+        Ok(out) => String::from_utf8_lossy(&out.stdout).to_string(),
+        Err(_) => {
+            return Err(WallSwitchError::UnableToFind(
+                "hyprpaper daemon not running".into(),
+            ));
+        }
+    };
+
+    // 2. Iterate over monitors and images, assigning a distinct image to each monitor.
+    for (image, monitor) in images.iter().zip(&monitors) {
+        let path_str = image.path.to_str().unwrap_or_default();
+
+        // 3. Preload image only if it is not already in memory.
+        // hyprpaper returns an error if we try to preload an already loaded image.
+        if !loaded_str.contains(path_str) {
+            if config.verbose {
+                println!("[HYPR] Preloading: {}", path_str);
+            }
+            // Use .output() directly to ignore non-critical preload errors (silent fail).
+            let _ = Command::new("hyprctl")
+                .args(["hyprpaper", "preload", path_str])
+                .output();
+        }
+
+        // 4. Apply the wallpaper to the specific monitor.
+        let mut wall_cmd = Command::new("hyprctl");
+        let wall_arg = format!("{monitor},{path_str}");
+        wall_cmd.args(["hyprpaper", "wallpaper", &wall_arg]);
+
+        exec_cmd(
+            &mut wall_cmd,
+            config.verbose,
+            &format!("Apply wallpaper on {monitor}"),
+        )?;
+    }
+
+    // 5. Clean up memory by unloading images that are no longer in use.
+    // We use .output() instead of exec_cmd here because 'unload unused' often
+    // returns an "invalid request" error if hyprpaper is busy, which shouldn't
+    // crash the main application.
+    if config.verbose {
+        println!("[HYPR] Unloading unused images from RAM...");
+    }
+    let _ = Command::new("hyprctl")
+        .args(["hyprpaper", "unload", "unused"])
+        .output();
 
     Ok(())
+}
+
+/// Retrieves active monitor names (e.g., DP-1, HDMI-A-1) from hyprctl monitors.
+fn get_hyprland_monitors(config: &Config) -> WallSwitchResult<Vec<String>> {
+    let mut cmd = Command::new("hyprctl");
+    cmd.arg("monitors");
+
+    // Execute hyprctl to get the current hardware state.
+    let output = exec_cmd(&mut cmd, config.verbose, "get_hyprland_monitors")?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    // Parse output to extract monitor names from lines starting with "Monitor".
+    let monitors: Vec<String> = stdout
+        .lines()
+        .filter(|line| line.starts_with("Monitor"))
+        .filter_map(|line| line.split_whitespace().nth(1).map(|s| s.to_string()))
+        .collect();
+
+    if monitors.is_empty() {
+        return Err(WallSwitchError::NoMonitors("hyprctl".to_string()));
+    }
+
+    Ok(monitors)
 }
 
 fn set_xfce_wallpaper(images: &[FileInfo], config: &Config) -> WallSwitchResult<()> {

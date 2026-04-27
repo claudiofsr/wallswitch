@@ -199,6 +199,10 @@ pub struct Arguments {
     )]
     pub monitor_orientation: Option<Orientation>,
 
+    /// Run a single wallpaper update cycle and exit.
+    #[arg(long, default_value_t = false)]
+    pub once: bool,
+
     /// Set number of pictures (or images) per monitor [default: 1]
     ///
     /// Each monitor can have a diferent number of pictures (or images)
