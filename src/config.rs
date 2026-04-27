@@ -1,6 +1,6 @@
 use crate::{
-    Arguments, ENVIRON, Monitor, Orientation, U8Extension, WallSwitchError, WallSwitchResult,
-    get_feh_path, get_magick_path, get_monitors,
+    Arguments, Desktop, ENVIRON, Monitor, Orientation, U8Extension, WallSwitchError,
+    WallSwitchResult, get_feh_path, get_magick_path, get_monitors,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -13,7 +13,7 @@ use std::{
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
     /// Desktops: gnome, xfce, openbox, ...
-    pub desktop: String,
+    pub desktop: Desktop,
     /// Directories containing image files
     pub directories: Vec<PathBuf>,
     /// Image file extension (identify -list format)
@@ -65,7 +65,7 @@ impl Default for Config {
         let max_dimension: u64 = 128_000;
 
         Config {
-            desktop: ENVIRON.desktop.to_string(),
+            desktop: Desktop::detect(),
             min_dimension,
             max_dimension,
             min_size: u64::pow(1024, 1), // 1024 ^ 1 = 1kb
@@ -185,7 +185,7 @@ impl Config {
             self.verbose = !self.verbose;
         }
 
-        self.desktop = ENVIRON.desktop.to_string(); // update desktop
+        self.desktop = Desktop::detect(); // update desktop
 
         Ok(self)
     }

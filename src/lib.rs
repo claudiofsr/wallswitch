@@ -1,6 +1,7 @@
+mod backends;
 mod config;
 mod dependencies;
-mod desktops;
+mod desktop;
 mod dimension;
 mod environment;
 mod error;
@@ -12,8 +13,8 @@ mod traits;
 mod walkdir;
 
 pub use self::{
-    config::*, dependencies::*, desktops::*, dimension::*, environment::*, error::*, fileinfo::*,
-    monitors::*, orientation::*, pids::*, traits::*, walkdir::*,
+    backends::*, config::*, dependencies::*, desktop::*, dimension::*, environment::*, error::*,
+    fileinfo::*, monitors::*, orientation::*, pids::*, traits::*, walkdir::*,
 };
 
 // https://crates.io/crates/cfg-if
