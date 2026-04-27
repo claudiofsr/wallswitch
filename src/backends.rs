@@ -1,5 +1,5 @@
 use crate::{
-    Colors, Config, Desktop, FileInfo,
+    Config, Desktop, FileInfo,
     Orientation::{Horizontal, Vertical},
     U8Extension, WallSwitchError, WallSwitchResult,
 };
@@ -24,47 +24,15 @@ pub fn set_wallpaper(images: &[FileInfo], config: &Config) -> WallSwitchResult<(
 }
 
 /// Helper to check if a command exists in the system PATH.
-/// It also logs the check if verbose is enabled.
-fn is_installed(binary: &str, verbose: bool) -> bool {
+fn is_installed(binary: &str) -> bool {
     let mut cmd = Command::new("which");
     cmd.arg(binary);
 
-    if verbose {
-        println!("\n[CHECK] Checking if '{binary}' is installed...");
-        println!("program: {:?}", cmd.get_program());
-        println!("arguments: {:#?}", cmd.get_args().collect::<Vec<_>>());
-    }
-
-    let status = cmd
-        .stdout(Stdio::null())
+    cmd.stdout(Stdio::null())
         .stderr(Stdio::null())
         .status()
         .map(|s| s.success())
-        .unwrap_or(false);
-
-    if verbose {
-        println!(
-            "Result: {}",
-            if status {
-                "Found".green()
-            } else {
-                "Not Found".red()
-            }
-        );
-    }
-
-    status
-}
-
-/// Generic error message for missing Wayland wallpaper tools with installation instructions.
-fn missing_tools_error() -> WallSwitchError {
-    let msg = "Neither 'swaybg' nor 'hyprpaper' was found on your system.\n\n\
-        To fix this, please install at least one of them:\n\
-        - Manjaro/Arch: sudo pacman -S swaybg hyprpaper\n\
-        - Fedora: sudo dnf install swaybg hyprpaper\n\
-        - Debian/Ubuntu: sudo apt install swaybg hyprpaper"
-        .to_string();
-    WallSwitchError::UnableToFind(msg)
+        .unwrap_or(false)
 }
 
 /// Logic for applying wallpaper using swaybg.
@@ -114,11 +82,6 @@ fn set_hyprland_wallpaper(images: &[FileInfo], config: &Config) -> WallSwitchRes
     let mut check_cmd = Command::new("hyprctl");
     check_cmd.args(["hyprpaper", "listloaded"]);
 
-    if config.verbose {
-        println!("\nprogram: {:?}", check_cmd.get_program());
-        println!("arguments: {:#?}", check_cmd.get_args().collect::<Vec<_>>());
-    }
-
     let loaded_str = match check_cmd.output() {
         Ok(out) => String::from_utf8_lossy(&out.stdout).to_string(),
         Err(_) => {
@@ -161,13 +124,7 @@ fn set_hyprland_wallpaper(images: &[FileInfo], config: &Config) -> WallSwitchRes
     // 3. Cleanup
     let mut unload_cmd = Command::new("hyprctl");
     unload_cmd.args(["hyprpaper", "unload", "unused"]);
-    if config.verbose {
-        println!("\nprogram: {:?}", unload_cmd.get_program());
-        println!(
-            "arguments: {:#?}",
-            unload_cmd.get_args().collect::<Vec<_>>()
-        );
-    }
+
     let _ = unload_cmd.output();
 
     Ok(())
@@ -200,13 +157,13 @@ fn get_hyprland_monitors(config: &Config) -> WallSwitchResult<Vec<String>> {
 fn set_niri_wallpaper(images: &[FileInfo], config: &Config) -> WallSwitchResult<()> {
     let monitors = get_niri_monitors(config)?;
 
-    if is_installed("swaybg", config.verbose) {
+    if is_installed("swaybg") {
         apply_swaybg_wallpaper(images, &monitors, config)
-    } else if is_installed("hyprpaper", config.verbose) {
+    } else if is_installed("hyprpaper") {
         // Uses hyprland logic as fallback for hyprpaper
         set_hyprland_wallpaper(images, config)
     } else {
-        Err(missing_tools_error())
+        Err(WallSwitchError::MissingWaylandTools)
     }
 }
 

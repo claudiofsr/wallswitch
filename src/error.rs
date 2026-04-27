@@ -145,6 +145,20 @@ pub enum WallSwitchError {
     )]
     MinMax { min: u64, max: u64 },
 
+    /// Error when neither swaybg nor hyprpaper is found on Wayland.
+    #[error(
+        "{e}: Neither 'swaybg' nor 'hyprpaper' was found on your system.\n\n\
+        To fix this, please install at least one of them:\n\
+        - Manjaro/Arch: {pacman}\n\
+        - Fedora: {dnf}\n\
+        - Debian/Ubuntu: {apt}",
+        e = "Error".red().bold(),
+        pacman = "sudo pacman -S swaybg hyprpaper".green(),
+        dnf = "sudo dnf install swaybg hyprpaper".green(),
+        apt = "sudo apt install swaybg hyprpaper".green(),
+    )]
+    MissingWaylandTools,
+
     /// Error when no valid images are found in specified directories.
     #[error(
         "{e}: no images found in image directories!\n\
