@@ -1,12 +1,12 @@
 use crate::{
-    Config, Desktop, FileInfo,
+    Colors, Config, Desktop, FileInfo,
     Orientation::{Horizontal, Vertical},
     U8Extension, WallSwitchError, WallSwitchResult,
 };
 use std::{
     // cmp::Ordering,
     path::PathBuf,
-    process::{Command, Output},
+    process::{Command, Output, Stdio},
 };
 
 /// Set desktop wallpaper based on the detected Desktop Environment.
@@ -23,21 +23,103 @@ pub fn set_wallpaper(images: &[FileInfo], config: &Config) -> WallSwitchResult<(
     Ok(())
 }
 
-/// Set wallpaper for Hyprland desktop using hyprpaper via hyprctl.
+/// Helper to check if a command exists in the system PATH.
+/// It also logs the check if verbose is enabled.
+fn is_installed(binary: &str, verbose: bool) -> bool {
+    let mut cmd = Command::new("which");
+    cmd.arg(binary);
+
+    if verbose {
+        println!("\n[CHECK] Checking if '{binary}' is installed...");
+        println!("program: {:?}", cmd.get_program());
+        println!("arguments: {:#?}", cmd.get_args().collect::<Vec<_>>());
+    }
+
+    let status = cmd
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false);
+
+    if verbose {
+        println!(
+            "Result: {}",
+            if status {
+                "Found".green()
+            } else {
+                "Not Found".red()
+            }
+        );
+    }
+
+    status
+}
+
+/// Generic error message for missing Wayland wallpaper tools with installation instructions.
+fn missing_tools_error() -> WallSwitchError {
+    let msg = "Neither 'swaybg' nor 'hyprpaper' was found on your system.\n\n\
+        To fix this, please install at least one of them:\n\
+        - Manjaro/Arch: sudo pacman -S swaybg hyprpaper\n\
+        - Fedora: sudo dnf install swaybg hyprpaper\n\
+        - Debian/Ubuntu: sudo apt install swaybg hyprpaper"
+        .to_string();
+    WallSwitchError::UnableToFind(msg)
+}
+
+/// Logic for applying wallpaper using swaybg.
+/// This includes the verbose logging requested.
+fn apply_swaybg_wallpaper(
+    images: &[FileInfo],
+    monitors: &[String],
+    config: &Config,
+) -> WallSwitchResult<()> {
+    // 1. Kill previous instances to avoid multiple swaybg processes
+    let _ = Command::new("pkill").arg("swaybg").output();
+
+    // 2. Construct the command
+    let mut cmd = Command::new("swaybg");
+    for (image, monitor) in images.iter().zip(monitors) {
+        let path_str = image.path.to_str().unwrap_or_default();
+        cmd.arg("-o")
+            .arg(monitor)
+            .arg("-i")
+            .arg(path_str)
+            .arg("-m")
+            .arg("fill");
+    }
+
+    // 3. Verbose Logging (Mimics the style of your exec_cmd)
+    if config.verbose {
+        let program = cmd.get_program();
+        let arguments: Vec<_> = cmd.get_args().collect::<Vec<_>>();
+        println!("\nprogram: {program:?}");
+        println!("arguments: {arguments:#?}");
+    }
+
+    // 4. Spawn the process (Background execution)
+    cmd.stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .map_err(WallSwitchError::Io)?;
+
+    Ok(())
+}
+
+/// Native Hyprland logic using hyprctl and hyprpaper daemon
 fn set_hyprland_wallpaper(images: &[FileInfo], config: &Config) -> WallSwitchResult<()> {
     let monitors = get_hyprland_monitors(config)?;
 
+    // 1. Check if daemon is alive
+    let mut check_cmd = Command::new("hyprctl");
+    check_cmd.args(["hyprpaper", "listloaded"]);
+
     if config.verbose {
-        println!("Hyprland monitors found: {monitors:?}");
+        println!("\nprogram: {:?}", check_cmd.get_program());
+        println!("arguments: {:#?}", check_cmd.get_args().collect::<Vec<_>>());
     }
 
-    // 1. Check if hyprpaper daemon is running by listing loaded images.
-    // If the command fails, the daemon is likely not started.
-    let list_loaded = Command::new("hyprctl")
-        .args(["hyprpaper", "listloaded"])
-        .output();
-
-    let loaded_str = match list_loaded {
+    let loaded_str = match check_cmd.output() {
         Ok(out) => String::from_utf8_lossy(&out.stdout).to_string(),
         Err(_) => {
             return Err(WallSwitchError::UnableToFind(
@@ -46,27 +128,29 @@ fn set_hyprland_wallpaper(images: &[FileInfo], config: &Config) -> WallSwitchRes
         }
     };
 
-    // 2. Iterate over monitors and images, assigning a distinct image to each monitor.
+    // 2. Preload and Wallpaper loop
     for (image, monitor) in images.iter().zip(&monitors) {
         let path_str = image.path.to_str().unwrap_or_default();
 
-        // 3. Preload image only if it is not already in memory.
-        // hyprpaper returns an error if we try to preload an already loaded image.
         if !loaded_str.contains(path_str) {
+            let mut preload_cmd = Command::new("hyprctl");
+            preload_cmd.args(["hyprpaper", "preload", path_str]);
+
             if config.verbose {
-                println!("[HYPR] Preloading: {}", path_str);
+                println!("\nprogram: {:?}", preload_cmd.get_program());
+                println!(
+                    "arguments: {:#?}",
+                    preload_cmd.get_args().collect::<Vec<_>>()
+                );
             }
-            // Use .output() directly to ignore non-critical preload errors (silent fail).
-            let _ = Command::new("hyprctl")
-                .args(["hyprpaper", "preload", path_str])
-                .output();
+            let _ = preload_cmd.output();
         }
 
-        // 4. Apply the wallpaper to the specific monitor.
         let mut wall_cmd = Command::new("hyprctl");
         let wall_arg = format!("{monitor},{path_str}");
         wall_cmd.args(["hyprpaper", "wallpaper", &wall_arg]);
 
+        // exec_cmd already handles its own verbose logging
         exec_cmd(
             &mut wall_cmd,
             config.verbose,
@@ -74,16 +158,17 @@ fn set_hyprland_wallpaper(images: &[FileInfo], config: &Config) -> WallSwitchRes
         )?;
     }
 
-    // 5. Clean up memory by unloading images that are no longer in use.
-    // We use .output() instead of exec_cmd here because 'unload unused' often
-    // returns an "invalid request" error if hyprpaper is busy, which shouldn't
-    // crash the main application.
+    // 3. Cleanup
+    let mut unload_cmd = Command::new("hyprctl");
+    unload_cmd.args(["hyprpaper", "unload", "unused"]);
     if config.verbose {
-        println!("[HYPR] Unloading unused images from RAM...");
+        println!("\nprogram: {:?}", unload_cmd.get_program());
+        println!(
+            "arguments: {:#?}",
+            unload_cmd.get_args().collect::<Vec<_>>()
+        );
     }
-    let _ = Command::new("hyprctl")
-        .args(["hyprpaper", "unload", "unused"])
-        .output();
+    let _ = unload_cmd.output();
 
     Ok(())
 }
@@ -111,42 +196,21 @@ fn get_hyprland_monitors(config: &Config) -> WallSwitchResult<Vec<String>> {
     Ok(monitors)
 }
 
-/// Set wallpaper for Niri using swaybg (Universal Wayland Wallpaper setter)
+/// Set wallpaper for Niri with fallback logic (swaybg -> hyprpaper)
 fn set_niri_wallpaper(images: &[FileInfo], config: &Config) -> WallSwitchResult<()> {
     let monitors = get_niri_monitors(config)?;
 
-    if config.verbose {
-        println!("Niri monitors found: {monitors:?}");
+    if is_installed("swaybg", config.verbose) {
+        apply_swaybg_wallpaper(images, &monitors, config)
+    } else if is_installed("hyprpaper", config.verbose) {
+        // Uses hyprland logic as fallback for hyprpaper
+        set_hyprland_wallpaper(images, config)
+    } else {
+        Err(missing_tools_error())
     }
-
-    // O swaybg não é um daemon IPC como o hyprpaper.
-    // Para trocar o wallpaper, precisamos matar o processo anterior e iniciar um novo.
-    let _ = Command::new("pkill").arg("swaybg").output();
-
-    let mut cmd = Command::new("swaybg");
-
-    // Vincula cada imagem a um monitor detectado
-    for (image, monitor) in images.iter().zip(monitors) {
-        let path_str = image.path.to_str().unwrap_or_default();
-        cmd.arg("-o")
-            .arg(monitor)
-            .arg("-i")
-            .arg(path_str)
-            .arg("-m")
-            .arg("fill");
-    }
-
-    // Inicia como processo em background (spawn) para não travar o wallswitch
-    if config.verbose {
-        println!("Running: {:?}", cmd);
-    }
-
-    cmd.spawn().map_err(WallSwitchError::Io)?;
-
-    Ok(())
 }
 
-/// Get monitor names from Niri using 'niri msg outputs'
+/// Get monitor names from Niri (e.g., DP-1, DP-2) using 'niri msg outputs'
 fn get_niri_monitors(config: &Config) -> WallSwitchResult<Vec<String>> {
     let mut cmd = Command::new("niri");
     cmd.args(["msg", "outputs"]);
@@ -154,17 +218,21 @@ fn get_niri_monitors(config: &Config) -> WallSwitchResult<Vec<String>> {
     let output = exec_cmd(&mut cmd, config.verbose, "get_niri_monitors")?;
     let stdout = String::from_utf8_lossy(&output.stdout);
 
-    /*
-       O output do niri costuma ser:
-       DP-1:
-         logical: 3840x2160 ...
-       DP-2:
-         logical: 3840x2160 ...
-    */
+    // New parsing logic:
+    // 1. Filter lines starting with "Output"
+    // 2. Find the content inside the LAST set of parentheses
     let monitors: Vec<String> = stdout
         .lines()
-        .filter(|line| !line.starts_with(' ') && line.contains(':'))
-        .map(|line| line.replace(':', "").trim().to_string())
+        .filter(|line| line.starts_with("Output"))
+        .filter_map(|line| {
+            let start = line.rfind('(')?; // Find last '('
+            let end = line.rfind(')')?; // Find last ')'
+            if start < end {
+                Some(line[start + 1..end].to_string())
+            } else {
+                None
+            }
+        })
         .collect();
 
     if monitors.is_empty() {
