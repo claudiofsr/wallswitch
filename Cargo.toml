@@ -2,14 +2,14 @@
 name = "wallswitch"
 description = "randomly selects wallpapers for multiple monitors"
 authors = ["Claudio F S Rodrigues <claudiofsrodrigues@gmail.com>"]
-version = "0.53.3"
+version = "0.53.4"
 repository = "https://github.com/claudiofsr/wallswitch"
 homepage = "https://github.com/claudiofsr/wallswitch"
 documentation = "https://docs.rs/wallswitch"
 license = "BSD-3-Clause"
 readme = "README.md"
 edition = "2024"
-rust-version = "1.90"
+rust-version = "1.95"
 categories = ["command-line-utilities"]
 keywords = [
     "wallpaper",
@@ -29,8 +29,8 @@ walkdir = "2.5"
 
 # optional:
 anstyle = { version = "1.0", optional = true }
-clap = { version = "4.5", features = ["derive", "color"], optional = true }
-clap_complete = { version = "4.5", optional = true }
+clap = { version = "4.6", features = ["derive", "color"], optional = true }
+clap_complete = { version = "4.6", optional = true }
 
 [features]
 default = ["args_v1"]
