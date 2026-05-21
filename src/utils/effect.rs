@@ -191,7 +191,7 @@ impl FractalGenerator {
         let c_idx = get_random_integer(0, (presets.len() - 1) as u64) as usize;
         let p_idx = get_random_integer(0, (palettes.len() - 1) as u64) as usize;
 
-        let zoom = get_random_integer(180, 300) as f32 / 100.0;
+        let zoom = get_random_integer(200, 300) as f32 / 100.0;
         let angle_degrees = get_random_integer(0, 359) as f32;
         let radians = angle_degrees.to_radians();
 
