@@ -1,0 +1,78 @@
+man magick
+
+https://www.imagemagick.org/script/command-line-processing.php
+https://www.imagemagick.org/Magick++/Image++.html
+
+Consider m = 2 monitors with the resolutions:
+
+"resolutions": [
+	{
+	  "width": 3840,
+	  "height": 2160
+	},
+	{
+	  "width": 3840,
+	  "height": 2160
+	}
+]
+
+Consider 26 figures or images, 13 for each monitor:
+
+fig01.avif  
+fig02.jpg
+fig03.webp
+...
+fig25.png
+fig26.svg
+
+pictures_per_monitor = 13
+
+Size occupied by each image:
+3840 / 13 = 295
+2160 / 13 = 166
+
+Remainders:
+3840 % 13 = 5
+2160 % 13 = 2
+
+
+
+Example 1: equal resolutions, vertical + horizontal
+monitor orientation: Side-by-side (horizontal)
+
+magick \
+\( \
+-gravity Center \
+\( fig01* -resize 296x2160^ -extent 296x2160 \) \
+\( fig02* -resize 296x2160^ -extent 296x2160 \) \
+\( fig03* -resize 296x2160^ -extent 296x2160 \) \
+\( fig04* -resize 296x2160^ -extent 296x2160 \) \
+\( fig05* -resize 296x2160^ -extent 296x2160 \) \
+\( fig06* -resize 295x2160^ -extent 295x2160 \) \
+\( fig07* -resize 295x2160^ -extent 295x2160 \) \
+\( fig08* -resize 295x2160^ -extent 295x2160 \) \
+\( fig09* -resize 295x2160^ -extent 295x2160 \) \
+\( fig10* -resize 295x2160^ -extent 295x2160 \) \
+\( fig11* -resize 295x2160^ -extent 295x2160 \) \
+\( fig12* -resize 295x2160^ -extent 295x2160 \) \
+\( fig13* -resize 295x2160^ -extent 295x2160 \) \
+-gravity South +append \
+\) \
+\( \
+-gravity Center \
+\( fig14* -resize 3840x167^ -extent 3840x167 \) \
+\( fig15* -resize 3840x167^ -extent 3840x167 \) \
+\( fig16* -resize 3840x166^ -extent 3840x166 \) \
+\( fig17* -resize 3840x166^ -extent 3840x166 \) \
+\( fig18* -resize 3840x166^ -extent 3840x166 \) \
+\( fig19* -resize 3840x166^ -extent 3840x166 \) \
+\( fig20* -resize 3840x166^ -extent 3840x166 \) \
+\( fig21* -resize 3840x166^ -extent 3840x166 \) \
+\( fig22* -resize 3840x166^ -extent 3840x166 \) \
+\( fig23* -resize 3840x166^ -extent 3840x166 \) \
+\( fig24* -resize 3840x166^ -extent 3840x166 \) \
+\( fig25* -resize 3840x166^ -extent 3840x166 \) \
+\( fig26* -resize 3840x166^ -extent 3840x166 \) \
+-gravity South -append \
+\) \
++append wallpaper.jpg
