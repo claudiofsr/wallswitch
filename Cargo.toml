@@ -31,7 +31,7 @@ thiserror = "2.0"
 walkdir = "2.5"
 which = "8.0"
 
-[lints.rustt]
+[lints.rust]
 unsafe_code = "forbid"
 
 [profile.release]
