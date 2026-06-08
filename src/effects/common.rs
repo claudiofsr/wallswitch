@@ -26,12 +26,6 @@ use std::{
     path::Path,
 };
 
-/// The default minimum iteration limit for escape-time fractal calculation.
-pub const MIN_ITERATIONS: u32 = 600;
-
-/// The default maximum iteration limit for escape-time fractal calculation.
-pub const MAX_ITERATIONS: u32 = 1200;
-
 /// The number of angular steps used to evaluate structural rotations during optimization.
 pub const ROTATION_STEPS: usize = 16;
 
