@@ -64,14 +64,14 @@ impl Default for EffectsConfig {
                         re: -0.74,
                         im: 0.24,
                     },
-                    fractal_name: "Deep valley of the seahorses".to_string(),
+                    fractal_name: "custom v1".to_string(),
                 },
                 CustomFractalPreset {
                     center: Complex {
-                        re: -1.75,
-                        im: 0.012,
+                        re: -0.088,
+                        im: 0.655,
                     },
-                    fractal_name: "West needle crown mini-Mandelbrot".to_string(),
+                    fractal_name: "custom v2".to_string(),
                 },
             ],
             newton: vec![
@@ -364,6 +364,19 @@ impl Config {
             self.effect = effect;
         }
 
+        // Apply CLI overrides for procedural mathematical overlay details (EffectsConfig)
+        if let Some(effects_add_presets) = args.effects_add_presets {
+            self.effects.add_presets = effects_add_presets;
+        }
+
+        if let Some(effects_min_iterations) = args.effects_min_iterations {
+            self.effects.min_iterations = effects_min_iterations;
+        }
+
+        if let Some(effects_max_iterations) = args.effects_max_iterations {
+            self.effects.max_iterations = effects_max_iterations;
+        }
+
         if args.sort {
             self.sort = !self.sort;
         }
@@ -441,6 +454,7 @@ impl Config {
             fs::create_dir_all(parent)?;
         }
 
+        // Validate basic boundary pairs
         for (min, max) in [
             (self.min_dimension, self.max_dimension),
             (self.min_size, self.max_size),
@@ -448,6 +462,14 @@ impl Config {
             if min > max {
                 return Err(WallSwitchError::MinMax { min, max });
             }
+        }
+
+        // Validate that min_iterations does not exceed max_iterations
+        if self.effects.min_iterations > self.effects.max_iterations {
+            return Err(WallSwitchError::MinMax {
+                min: self.effects.min_iterations as u64,
+                max: self.effects.max_iterations as u64,
+            });
         }
 
         Ok(self)

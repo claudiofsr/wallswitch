@@ -4,7 +4,10 @@ use crate::{
 };
 use clap::{
     CommandFactory, Parser,
-    builder::styling::{AnsiColor, Effects, Styles},
+    builder::{
+        BoolishValueParser,
+        styling::{AnsiColor, Effects, Styles},
+    },
 }; // command-line arguments
 use clap_complete::{Generator, Shell, generate};
 
@@ -27,13 +30,33 @@ fn get_after_help() -> String {
 
     // 1. Initialize the base string with the configuration file path
     let mut help_text = format!(
-        "{}\n  {}\n\n{}\n",
+        "{}\n  {}\n\n",
         "Config file:".yellow().bold(),
         config_path.blue().bold(),
-        "Examples:".yellow().bold()
     );
 
-    // 2. Define examples as an Array of structured Tuples ("Comment", "Command")
+    // 2. Add detailed section about EffectsConfig and configuration adjustments
+    help_text.push_str(&format!(
+        "{}\n  {}\n\n\
+         • {}: Add custom presets to defaults (default: true).\n\
+          • {}: Minimum iteration limit for escape-time calculations.\n\
+          • {}: Maximum iteration limit for escape-time calculations.\n\
+          • {} / {} / {} / {}: Custom arrays of mathematical presets.\n\n",
+        "Effects Configuration (EffectsConfig):".yellow().bold(),
+        "Alter these parameters inside your 'wallswitch.json' or override them via CLI:".dimmed(),
+        "add_presets".green().bold(),
+        "min_iterations".green().bold(),
+        "max_iterations".green().bold(),
+        "julia".green().bold(),
+        "mandelbrot".green().bold(),
+        "newton".green().bold(),
+        "nova".green().bold()
+    ));
+
+    // 3. Add Examples heading
+    help_text.push_str(&format!("{}\n", "Examples:".yellow().bold()));
+
+    // 4. Define examples as an Array of structured Tuples ("Comment", "Command")
     let examples = [
         (
             "# Start the automatic background loop using default settings",
@@ -58,6 +81,10 @@ fn get_after_help() -> String {
         (
             "# Apply a specific Julia Sets fractal overlay on wallpapers",
             "wallswitch --effect julia",
+        ),
+        (
+            "# Override the preset behavior and iterations for fractal calculations",
+            "wallswitch --effect julia --effects-add-presets false --effects-min-iterations 1200",
         ),
         (
             "# Apply random fractal overlays [julia, mandelbrot, newton, nova]",
@@ -93,7 +120,7 @@ fn get_after_help() -> String {
         ),
     ];
 
-    // 3. Iterate over the list, applying colors centrally and idiomatically
+    // 5. Iterate over the list, applying colors centrally and idiomatically
     for (comment, cmd) in examples {
         help_text.push_str(&format!(
             "  {}\n  {}\n\n",
@@ -192,6 +219,33 @@ pub struct Arguments {
         hide_default_value = true,
     )]
     pub effect: Option<ProceduralEffect>,
+
+    /// Whether custom presets are appended to default ones (true) or replace them (false).
+    #[arg(
+        long("effects-add-presets"),
+        value_name = "BOOL",
+        required = false,
+        value_parser = BoolishValueParser::new(),
+    )]
+    pub effects_add_presets: Option<bool>,
+
+    /// Set a custom minimum iteration limit for escape-time fractal calculations.
+    #[arg(
+        long("effects-min-iterations"),
+        value_name = "MIN_ITERATIONS",
+        required = false,
+        value_parser = clap::value_parser!(u32).range(10..=100_000),
+    )]
+    pub effects_min_iterations: Option<u32>,
+
+    /// Set a custom maximum iteration limit for escape-time fractal calculations.
+    #[arg(
+        long("effects-max-iterations"),
+        value_name = "MAX_ITERATIONS",
+        required = false,
+        value_parser = clap::value_parser!(u32).range(10..=100_000),
+    )]
+    pub effects_max_iterations: Option<u32>,
 
     /**
     Generate shell completions and exit the program.

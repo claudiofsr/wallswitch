@@ -413,7 +413,7 @@ pub fn generate_zoom_candidates(zooms_count: usize, rotations_count: usize) -> V
         return Vec::new();
     }
 
-    const MIN_ZOOM: f64 = 2e-6;
+    const MIN_ZOOM: f64 = 2e-5;
     const MAX_ZOOM: f64 = 9.0;
     let log_ratio = MAX_ZOOM / MIN_ZOOM;
 
