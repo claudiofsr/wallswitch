@@ -61,15 +61,15 @@ impl Default for EffectsConfig {
             mandelbrot: vec![
                 CustomFractalPreset {
                     center: Complex {
-                        re: -0.743643887,
-                        im: 0.131825904,
+                        re: -0.74,
+                        im: 0.24,
                     },
                     fractal_name: "Deep valley of the seahorses".to_string(),
                 },
                 CustomFractalPreset {
                     center: Complex {
-                        re: -1.749638667,
-                        im: 0.0,
+                        re: -1.75,
+                        im: 0.012,
                     },
                     fractal_name: "West needle crown mini-Mandelbrot".to_string(),
                 },
