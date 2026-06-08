@@ -1,0 +1,57 @@
+[package]
+name = "wallswitch"
+description = "randomly selects wallpapers for multiple monitors"
+authors = ["Claudio F S Rodrigues <claudiofsrodrigues@gmail.com>"]
+version = "0.61.3"
+repository = "https://github.com/claudiofsr/wallswitch"
+homepage = "https://github.com/claudiofsr/wallswitch"
+documentation = "https://docs.rs/wallswitch"
+license = "BSD-3-Clause"
+readme = "README.md"
+edition = "2024"
+rust-version = "1.95"
+categories = ["command-line-utilities"]
+keywords = [
+    "wallpaper",
+    "desktop",
+    "random",
+    "images",
+    "switch",
+]
+
+[dependencies]
+blake3 = "1.8"
+clap = { version = "4.6", features = ["derive", "color"] }
+clap_complete = "4.6"
+image = { version = "0.25", features = ["default-formats", "rayon", "serde", "avif-native"] }
+rayon = { version = "1.12" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sysinfo = "0.39"
+thiserror = "2.0"
+walkdir = "2.5"
+which = "8.0"
+
+[target.'cfg(not(target_env = "msvc"))'.dependencies]
+mimalloc = { version = "0.1", default-features = false }
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[profile.release]
+# https://doc.rust-lang.org/cargo/reference/profiles.html
+debug = true            # debug info at all.
+strip = "symbols"       # Strip symbols from a binary.
+opt-level = 3           # All optimizations.
+overflow-checks = true  # Panic will occur on overflow.
+lto = true              # Enable link time optimization.
+codegen-units = 1       # Use a single codegen for size optimization.
+panic = "abort"         # Remove traceback information.
+incremental = true      # Save information to disk, improving re-compile times.
+
+[profile.dev]
+opt-level = 1           # Use slightly better optimizations.
+
+# To build and install from source, run the following command:
+# cargo b -r && cargo install --path=.
+
