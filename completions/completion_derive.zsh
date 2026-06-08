@@ -43,6 +43,9 @@ star\:"Procedural Starfield / Bokeh generator"
 fractal\:"Fractal mode selector\: randomly chooses between Julia or Mandelbrot"
 polynomial\:"Fractal mode selector\: randomly chooses between Newton or Nova"
 random\:"Fully randomised mode selector\: picks any effect independently per display"))' \
+'--effects-add-presets=[Whether custom presets are appended to default ones (true) or replace them (false)]:BOOL:(true false)' \
+'--effects-min-iterations=[Set a custom minimum iteration limit for escape-time fractal calculations]:MIN_ITERATIONS:_default' \
+'--effects-max-iterations=[Set a custom maximum iteration limit for escape-time fractal calculations]:MAX_ITERATIONS:_default' \
 '-g+[Generate shell completions and exit the program]:GENERATOR:(bash elvish fish powershell zsh)' \
 '--generate=[Generate shell completions and exit the program]:GENERATOR:(bash elvish fish powershell zsh)' \
 '-i+[Set the interval (in seconds) between each wallpaper displayed]:INTERVAL:_default' \

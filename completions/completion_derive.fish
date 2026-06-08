@@ -12,6 +12,10 @@ star\t'Procedural Starfield / Bokeh generator'
 fractal\t'Fractal mode selector: randomly chooses between Julia or Mandelbrot'
 polynomial\t'Fractal mode selector: randomly chooses between Newton or Nova'
 random\t'Fully randomised mode selector: picks any effect independently per display'"
+complete -c wallswitch -l effects-add-presets -d 'Whether custom presets are appended to default ones (true) or replace them (false)' -r -f -a "true\t''
+false\t''"
+complete -c wallswitch -l effects-min-iterations -d 'Set a custom minimum iteration limit for escape-time fractal calculations' -r
+complete -c wallswitch -l effects-max-iterations -d 'Set a custom maximum iteration limit for escape-time fractal calculations' -r
 complete -c wallswitch -s g -l generate -d 'Generate shell completions and exit the program' -r -f -a "bash\t''
 elvish\t''
 fish\t''

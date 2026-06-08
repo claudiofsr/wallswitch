@@ -23,7 +23,7 @@ _wallswitch() {
 
     case "${cmd}" in
         wallswitch)
-            opts="-b -B -c -d -D -e -g -i -l -m -o -p -s -v -h -V --min_size --max_size --config --min_dimension --max_dimension --effect --generate --interval --list --monitor --orientation --once --pictures_per_monitor --sort --dry-run --transition-type --transition-duration --transition-fps --transition-angle --transition-pos --verbose --help --version"
+            opts="-b -B -c -d -D -e -g -i -l -m -o -p -s -v -h -V --min_size --max_size --config --min_dimension --max_dimension --effect --effects-add-presets --effects-min-iterations --effects-max-iterations --generate --interval --list --monitor --orientation --once --pictures_per_monitor --sort --dry-run --transition-type --transition-duration --transition-fps --transition-angle --transition-pos --verbose --help --version"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -67,6 +67,18 @@ _wallswitch() {
                     ;;
                 -e)
                     COMPREPLY=($(compgen -W "none julia mandelbrot newton nova aurora star fractal polynomial random" -- "${cur}"))
+                    return 0
+                    ;;
+                --effects-add-presets)
+                    COMPREPLY=($(compgen -W "true false" -- "${cur}"))
+                    return 0
+                    ;;
+                --effects-min-iterations)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --effects-max-iterations)
+                    COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
                 --generate)
