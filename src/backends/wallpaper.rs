@@ -76,13 +76,23 @@ pub fn set_wallpaper(images: &[FileInfo], config: &Config) -> WallSwitchResult<(
 
         Desktop::Xfce => XfceBackend::apply(&compiled_images, config)?,
 
-        Desktop::Hyprland | Desktop::Niri | Desktop::Labwc | Desktop::Mango | Desktop::Wayland => {
+        Desktop::Hyprland => {
+            if is_installed("hyprpaper") {
+                HyprlandBackend::apply(&compiled_images, config)?;
+            } else if is_installed("awww") {
+                AwwwBackend::apply(&compiled_images, config)?;
+            } else if is_installed("swaybg") {
+                SwaybgBackend::apply(&compiled_images, config)?;
+            } else {
+                return Err(WallSwitchError::MissingWaylandTools);
+            }
+        }
+
+        Desktop::Niri | Desktop::Labwc | Desktop::Mango | Desktop::Wayland => {
             if is_installed("awww") {
                 AwwwBackend::apply(&compiled_images, config)?;
             } else if is_installed("swaybg") {
                 SwaybgBackend::apply(&compiled_images, config)?;
-            } else if is_installed("hyprpaper") {
-                HyprlandBackend::apply(&compiled_images, config)?;
             } else {
                 return Err(WallSwitchError::MissingWaylandTools);
             }
