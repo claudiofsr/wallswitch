@@ -46,7 +46,7 @@ impl WallpaperBackend for AwwwBackend {
                 exec_cmd(
                     &mut cmd,
                     config.verbose,
-                    &format!("Apply awww on {}", monitor),
+                    &format!("Apply awww on {monitor}"),
                 )?;
             }
         }
@@ -59,6 +59,7 @@ impl WallpaperBackend for AwwwBackend {
 // INTERNAL HELPERS
 // ==============================================================================
 
+/// Evaluates and selects the transition effect based on current configuration.
 fn get_transition_effect(config: &Config) -> String {
     if config.transition_type.to_lowercase() == "random" {
         let effects = ["wipe", "fade", "center", "outer", "wave", "left", "right"];
@@ -69,10 +70,12 @@ fn get_transition_effect(config: &Config) -> String {
     }
 }
 
+/// Helper status check to verify if the background process is active.
 fn is_daemon_alive() -> bool {
     backends::is_process_running("awww-daemon")
 }
 
+/// Standardized coordinator to clean stale environments and safely spin up the background process.
 fn ensure_daemon_running(config: &Config) -> WallSwitchResult<()> {
     backends::ensure_background_daemon(config, "awww-daemon", is_daemon_alive, || {
         // Send termination signal to any existing daemon
@@ -96,6 +99,7 @@ fn ensure_daemon_running(config: &Config) -> WallSwitchResult<()> {
     })
 }
 
+/// Cleans orphaned local domain sockets to prevent connectivity locks.
 fn clean_stale_sockets() {
     let runtime_dir = env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".to_string());
     if let Ok(entries) = fs::read_dir(&runtime_dir) {

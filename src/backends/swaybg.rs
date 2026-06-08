@@ -43,6 +43,8 @@ impl WallpaperBackend for SwaybgBackend {
         if config.dry_run {
             println!("[DRY-RUN] Would spawn swaybg daemon: {:?}", cmd);
         } else {
+            // Note: Since swaybg blocks while displaying the image, we spawn the process
+            // in the background rather than running it synchronously via output-based execution helpers.
             cmd.stdout(Stdio::null())
                 .stderr(Stdio::null())
                 .spawn()
@@ -57,20 +59,24 @@ impl WallpaperBackend for SwaybgBackend {
 // INTERNAL HELPERS
 // ==============================================================================
 
+/// Helper status check to verify if the background process is active.
 fn is_daemon_alive() -> bool {
     backends::is_process_running("swaybg")
 }
 
+/// Standardized termination and cleanup handler for swaybg.
+///
+/// Unlike backends with a dynamic configuration interface (e.g., IPC),
+/// `swaybg` must be terminated and spawned anew to apply updated configuration properties.
 fn ensure_daemon_running(config: &Config) -> WallSwitchResult<()> {
-    // swaybg lacks dynamic IPC reloading, so we must terminate previous running instances
-    // and spawn a new daemon with updated paths to reflect the new wallpaper.
     if is_daemon_alive() {
         if config.dry_run {
             println!("[DRY-RUN] Would terminate previous swaybg instances.");
         } else {
-            let _ = Command::new("pkill").arg("swaybg").output();
-            // Wait briefly to allow the kernel to clean up the terminated process
-            thread::sleep(Duration::from_millis(100));
+            let _ = Command::new("killall").arg("swaybg").output();
+            
+            // Wait a brief moment to ensure the OS terminates the process and frees resources
+            thread::sleep(Duration::from_millis(150));
         }
     }
     Ok(())

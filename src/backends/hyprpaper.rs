@@ -90,10 +90,12 @@ impl WallpaperBackend for HyprlandBackend {
 // INTERNAL HELPERS
 // ==============================================================================
 
+/// Helper status check to verify if the background process is active.
 fn is_daemon_alive() -> bool {
     backends::is_process_running("hyprpaper")
 }
 
+/// Standardized coordinator to clean stale environments and safely spin up the background process.
 fn ensure_daemon_running(config: &Config) -> WallSwitchResult<()> {
     backends::ensure_background_daemon(config, "hyprpaper", is_daemon_alive, || {
         // Kill any existing/stale hyprpaper instances to avoid socket conflicts
