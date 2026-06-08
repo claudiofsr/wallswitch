@@ -1,5 +1,5 @@
 use crate::{
-    Arguments, Desktop, Environment, Monitor, Orientation, ProceduralEffect, U8Extension,
+    Arguments, Complex, Desktop, Environment, Monitor, Orientation, ProceduralEffect, U8Extension,
     WallSwitchError, WallSwitchResult, get_feh_path, get_monitors,
 };
 use serde::{Deserialize, Serialize};
@@ -8,6 +8,144 @@ use std::{
     io::{BufReader, BufWriter, Write},
     path::{Path, PathBuf},
 };
+
+/// Configurable parameters and custom presets for procedural mathematical overlays.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EffectsConfig {
+    /// If true, append custom config presets to the default hardcoded presets.
+    ///
+    /// If false, use only the presets specified in the config file.
+    #[serde(default = "default_true")]
+    pub add_presets: bool,
+    /// Minimum iteration limit for escape-time fractal calculations.
+    #[serde(default = "default_min_iterations")]
+    pub min_iterations: u32,
+    /// Maximum iteration limit for escape-time fractal calculations.
+    #[serde(default = "default_max_iterations")]
+    pub max_iterations: u32,
+    /// User-defined Julia Set presets.
+    #[serde(default)]
+    pub julia: Vec<CustomFractalPreset>,
+    /// User-defined Mandelbrot Set presets.
+    #[serde(default)]
+    pub mandelbrot: Vec<CustomFractalPreset>,
+    /// User-defined Newton-Raphson Basin presets.
+    #[serde(default)]
+    pub newton: Vec<CustomNewtonPreset>,
+    /// User-defined Nova Julia presets.
+    #[serde(default)]
+    pub nova: Vec<CustomNovaPreset>,
+}
+
+impl Default for EffectsConfig {
+    /// Initialises default configuration parameters and seeds the configuration with
+    /// two distinct presets for each mathematical generator to provide immediate visual variety.
+    fn default() -> Self {
+        Self {
+            add_presets: default_true(),
+            min_iterations: default_min_iterations(),
+            max_iterations: default_max_iterations(),
+            julia: vec![
+                CustomFractalPreset {
+                    center: Complex { re: -0.8, im: 0.18 },
+                    fractal_name: "Stardust spiral galaxy arms".to_string(),
+                },
+                CustomFractalPreset {
+                    center: Complex {
+                        re: 0.285,
+                        im: 0.535,
+                    },
+                    fractal_name: "Pinwheel orbital clouds".to_string(),
+                },
+            ],
+            mandelbrot: vec![
+                CustomFractalPreset {
+                    center: Complex {
+                        re: -0.743643887,
+                        im: 0.131825904,
+                    },
+                    fractal_name: "Deep valley of the seahorses".to_string(),
+                },
+                CustomFractalPreset {
+                    center: Complex {
+                        re: -1.749638667,
+                        im: 0.0,
+                    },
+                    fractal_name: "West needle crown mini-Mandelbrot".to_string(),
+                },
+            ],
+            newton: vec![
+                CustomNewtonPreset {
+                    power: 7,
+                    lambda: Complex { re: 0.95, im: 0.55 },
+                    name: "Aetheric prismatic vortex".to_string(),
+                },
+                CustomNewtonPreset {
+                    power: 3,
+                    lambda: Complex { re: 1.50, im: 0.25 },
+                    name: "Over-relaxed geometric crown".to_string(),
+                },
+            ],
+            nova: vec![
+                CustomNovaPreset {
+                    power: 4,
+                    c: Complex {
+                        re: -0.15,
+                        im: -0.35,
+                    },
+                    r: Complex { re: 1.10, im: 0.20 },
+                    name: "Bioluminescent plasma plumes".to_string(),
+                },
+                CustomNovaPreset {
+                    power: 6,
+                    c: Complex { re: 0.25, im: 0.40 },
+                    r: Complex {
+                        re: 0.85,
+                        im: -0.15,
+                    },
+                    name: "Astral jellyfish lattice".to_string(),
+                },
+            ],
+        }
+    }
+}
+
+/// Helper function providing a default true value for Serde deserialisation.
+fn default_true() -> bool {
+    true
+}
+
+fn default_min_iterations() -> u32 {
+    600
+}
+
+fn default_max_iterations() -> u32 {
+    1200
+}
+
+/// A serialized custom Julia/Mandelbrot preset representing the focal point.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CustomFractalPreset {
+    pub center: Complex,
+    pub fractal_name: String,
+}
+
+/// A serialized custom Newton preset representing root-finding convergence fields.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CustomNewtonPreset {
+    pub power: u32,
+    pub lambda: Complex,
+    pub name: String,
+}
+
+/// A serialized custom Nova preset representing dynamic fluid-like plumes.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CustomNovaPreset {
+    pub power: u32,
+    pub c: Complex,
+    pub r: Complex,
+    pub name: String,
+}
 
 /// Configuration variables
 #[derive(Debug, Serialize, Deserialize)]
@@ -43,6 +181,9 @@ pub struct Config {
     pub sort: bool,
     /// Selected procedural overlay effect (none, fractal, star, random)
     pub effect: ProceduralEffect,
+    /// Configurable parameters and custom presets for mathematical overlays
+    #[serde(default)]
+    pub effects: EffectsConfig,
     /// Wallpaper file path used by gnome desktop
     pub wallpaper: PathBuf,
 
@@ -91,6 +232,7 @@ impl Default for Config {
             max_size: u64::pow(1024, 3), // 1024 ^ 3 = 1Gb
             directories: get_directories().unwrap_or_default(),
             effect: ProceduralEffect::None,
+            effects: EffectsConfig::default(),
             extensions,
             interval,
             monitors: get_monitors(2),

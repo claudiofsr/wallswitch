@@ -68,6 +68,19 @@ pub trait RandomExt {
     fn get_random_sample(&self) -> WallSwitchResult<Self::Item>
     where
         Self::Item: Copy;
+
+    /// Selects a random cloned copy of an element from the slice.
+    ///
+    /// This is a convenience method that combines choosing an element and cloning it,
+    /// supporting types that do not implement the `Copy` trait.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`WallSwitchError::EmptySlice`](crate::WallSwitchError::EmptySlice)
+    /// if the slice is empty.
+    fn get_random_sample_cloned(&self) -> WallSwitchResult<Self::Item>
+    where
+        Self::Item: Clone;
 }
 
 impl<T> RandomExt for [T] {
@@ -100,6 +113,13 @@ impl<T> RandomExt for [T] {
         Self::Item: Copy,
     {
         self.choose().copied().ok_or(WallSwitchError::EmptySlice)
+    }
+
+    fn get_random_sample_cloned(&self) -> WallSwitchResult<Self::Item>
+    where
+        Self::Item: Clone,
+    {
+        self.choose().cloned().ok_or(WallSwitchError::EmptySlice)
     }
 }
 

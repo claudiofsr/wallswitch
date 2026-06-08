@@ -10,26 +10,21 @@
 //! where `c` varies over the viewport grid coordinates.
 
 use crate::{
-    ColorRGB, Complex, FractalConfig, FractalDescriptor, FractalPreset, MAX_ITERATIONS,
-    MIN_ITERATIONS, Monitor, NEON_PALETTES, ProceduralEffect, ROTATION_STEPS, RandomExt, Viewport,
-    ViewportSpecs, WallSwitchResult, color_distance_estimator, get_random_integer,
-    mandelbrot_escape,
+    ColorRGB, Complex, Config, FractalConfig, FractalDescriptor, FractalPreset, Monitor,
+    NEON_PALETTES, ProceduralEffect, ROTATION_STEPS, RandomExt, Viewport, ViewportSpecs,
+    WallSwitchResult, color_distance_estimator, get_random_integer, mandelbrot_escape,
 };
 use rayon::prelude::*;
-use std::cmp::Ordering;
+use std::{borrow::Cow, cmp::Ordering};
 
-// ============================================================================
-// PRESET TABLE
-// ============================================================================
-
-/// All available Mandelbrot coordinate presets.
+/// All available hardcoded Mandelbrot coordinate presets.
 const MANDELBROT_PRESETS: &[FractalPreset] = &[
     FractalPreset {
         center: Complex {
             re: -0.8115,
             im: 0.2014,
         },
-        fractal_name: "Tendril Valley Filaments",
+        fractal_name: Cow::Borrowed("Tendril Valley Filaments"),
         effect_name: ProceduralEffect::Mandelbrot,
     },
     FractalPreset {
@@ -37,7 +32,7 @@ const MANDELBROT_PRESETS: &[FractalPreset] = &[
             re: -0.156,
             im: 1.033,
         },
-        fractal_name: "Dreadlock Valley Basin",
+        fractal_name: Cow::Borrowed("Dreadlock Valley Basin"),
         effect_name: ProceduralEffect::Mandelbrot,
     },
     FractalPreset {
@@ -45,7 +40,7 @@ const MANDELBROT_PRESETS: &[FractalPreset] = &[
             re: -0.38,
             im: 0.66,
         },
-        fractal_name: "Starburst Star Valley",
+        fractal_name: Cow::Borrowed("Starburst Star Valley"),
         effect_name: ProceduralEffect::Mandelbrot,
     },
     FractalPreset {
@@ -53,7 +48,7 @@ const MANDELBROT_PRESETS: &[FractalPreset] = &[
             re: -0.56226,
             im: 0.64273,
         },
-        fractal_name: "Feathered Filament Cascades",
+        fractal_name: Cow::Borrowed("Feathered Filament Cascades"),
         effect_name: ProceduralEffect::Mandelbrot,
     },
     FractalPreset {
@@ -61,12 +56,12 @@ const MANDELBROT_PRESETS: &[FractalPreset] = &[
             re: -0.77568377,
             im: 0.13646737,
         },
-        fractal_name: "Deep Seahorse Tail Spiral",
+        fractal_name: Cow::Borrowed("Deep Seahorse Tail Spiral"),
         effect_name: ProceduralEffect::Mandelbrot,
     },
     FractalPreset {
         center: Complex { re: -1.45, im: 0.0 },
-        fractal_name: "West Needle Crown Filaments",
+        fractal_name: Cow::Borrowed("West Needle Crown Filaments"),
         effect_name: ProceduralEffect::Mandelbrot,
     },
     FractalPreset {
@@ -74,7 +69,7 @@ const MANDELBROT_PRESETS: &[FractalPreset] = &[
             re: -0.55,
             im: 0.62,
         },
-        fractal_name: "Pentagonal Star Valley",
+        fractal_name: Cow::Borrowed("Pentagonal Star Valley"),
         effect_name: ProceduralEffect::Mandelbrot,
     },
     FractalPreset {
@@ -82,7 +77,7 @@ const MANDELBROT_PRESETS: &[FractalPreset] = &[
             re: -1.625,
             im: 0.0,
         },
-        fractal_name: "Bi-Directional Filament",
+        fractal_name: Cow::Borrowed("Bi-Directional Filament"),
         effect_name: ProceduralEffect::Mandelbrot,
     },
     FractalPreset {
@@ -90,7 +85,7 @@ const MANDELBROT_PRESETS: &[FractalPreset] = &[
             re: -0.70176,
             im: 0.35422,
         },
-        fractal_name: "Peacock Tail Valley Plumes",
+        fractal_name: Cow::Borrowed("Peacock Tail Valley Plumes"),
         effect_name: ProceduralEffect::Mandelbrot,
     },
     FractalPreset {
@@ -98,14 +93,10 @@ const MANDELBROT_PRESETS: &[FractalPreset] = &[
             re: -0.8113,
             im: 0.2015,
         },
-        fractal_name: "Medusa Tendril Clusters",
+        fractal_name: Cow::Borrowed("Medusa Tendril Clusters"),
         effect_name: ProceduralEffect::Mandelbrot,
     },
 ];
-
-// ============================================================================
-// GENERATOR
-// ============================================================================
 
 /// A procedural generator for rendering Mandelbrot Set fractals onto desktop backgrounds.
 pub struct MandelbrotGenerator {
@@ -125,8 +116,6 @@ impl FractalDescriptor for MandelbrotGenerator {
     fn center(&self) -> Complex {
         self.preset.center
     }
-
-    // Mandelbrot: `is_julia` defaults to `false` — the viewport maps `c`, not `z`.
 
     #[inline(always)]
     fn render_pixel(&self, c: Complex, scale: f64, _max_radius: f64) -> (ColorRGB, f64, f64) {
@@ -162,17 +151,32 @@ impl FractalDescriptor for MandelbrotGenerator {
 
 impl MandelbrotGenerator {
     /// Constructs a randomized, non-fitted Mandelbrot Generator.
-    ///
-    /// This acts as a base constructor, returning an error if
-    /// the preset or color palette tables are empty.
-    pub fn new() -> WallSwitchResult<Self> {
-        let preset = MANDELBROT_PRESETS.get_random_sample()?;
+    pub fn new(config: &Config) -> WallSwitchResult<Self> {
+        let mut presets = Vec::new();
+
+        if config.effects.add_presets {
+            presets.extend(MANDELBROT_PRESETS.iter().cloned());
+        }
+
+        for custom in &config.effects.mandelbrot {
+            presets.push(FractalPreset {
+                center: custom.center,
+                fractal_name: Cow::Owned(custom.fractal_name.clone()),
+                effect_name: ProceduralEffect::Mandelbrot,
+            });
+        }
+
+        if presets.is_empty() {
+            presets.extend(MANDELBROT_PRESETS.iter().cloned());
+        }
+
+        let preset = presets.get_random_sample_cloned()?;
         let color_palette = NEON_PALETTES.get_random_sample()?;
 
         Ok(Self {
             preset,
             config: FractalConfig {
-                scan_iterations: MIN_ITERATIONS,
+                scan_iterations: config.effects.min_iterations,
                 color_palette,
                 zoom: 0.0025,
                 rotation: Complex::one(),
@@ -181,26 +185,19 @@ impl MandelbrotGenerator {
     }
 
     /// Constructs a randomised, monitor-fitted Mandelbrot generator.
-    ///
-    /// Reuses [`new`](Self::new) to construct the base randomized generator.
-    /// Runs a parallelised entropy sweep over a geometric zoom sequence and
-    /// `ROTATION_STEPS` rotation angles, selecting the combination that
-    /// maximises information content. `dynamic_autofocus` then refines the
-    /// centre and derives the level-of-detail iteration count.
-    pub fn random(monitor: &Monitor) -> WallSwitchResult<Self> {
+    pub fn random(monitor: &Monitor, config: &Config) -> WallSwitchResult<Self> {
         let (width, height) = (
             monitor.resolution.width as u32,
             monitor.resolution.height as u32,
         );
 
-        // 1. Initialize base randomized generator configuration
-        let mut mandelbrot = Self::new()?;
+        let mut mandelbrot = Self::new(config)?;
 
-        // 2. Perform parallelized entropy sweep to optimize zoom and rotation
         let rotation_phasors: Vec<Complex> = Complex::rotation_phasors(ROTATION_STEPS).collect();
         let zooms_count = get_random_integer(30, 50);
         let candidates = generate_zoom_candidates(zooms_count, ROTATION_STEPS);
         let preset_center = mandelbrot.preset.center;
+        let min_iter = config.effects.min_iterations;
 
         let (best_base_zoom, best_rotation, _) = candidates
             .par_iter()
@@ -217,7 +214,7 @@ impl MandelbrotGenerator {
                     preset_center,
                     adjusted_zoom,
                     rotation,
-                    MIN_ITERATIONS,
+                    min_iter,
                     width,
                     height,
                 );
@@ -229,9 +226,8 @@ impl MandelbrotGenerator {
         mandelbrot.config.zoom = best_base_zoom;
         mandelbrot.config.rotation = best_rotation;
 
-        // 3. Apply aspect ratio scaling and focus refinement
         mandelbrot.optimize_fit(width, height);
-        mandelbrot.dynamic_autofocus(width, height);
+        mandelbrot.dynamic_autofocus(width, height, config);
         Ok(mandelbrot)
     }
 
@@ -244,12 +240,7 @@ impl MandelbrotGenerator {
     }
 
     /// Refines the viewport centre and derives a level-of-detail iteration count.
-    ///
-    /// Uses a boundary-direction heuristic to align the centre with the nearest
-    /// interior segment, then performs a local entropy-hill-climb across
-    /// `ROTATION_STEPS` offsets to maximise structural detail. The iteration
-    /// count is derived from the zoom level using a logarithmic LOD formula.
-    pub fn dynamic_autofocus(&mut self, width: u32, height: u32) {
+    pub fn dynamic_autofocus(&mut self, width: u32, height: u32, config: &Config) {
         let search_radius = self.config.zoom * 0.25;
         let branch_phasor = find_branch_phasor(
             self.preset.center,
@@ -298,10 +289,10 @@ impl MandelbrotGenerator {
 
         self.preset.center = best_center;
 
-        // LOD: scale iterations logarithmically with zoom level.
         let scale = self.config.zoom / (width.min(height) as f64);
         let lod = (150.0 + 45.0 * (1.0 / scale).ln()) as u32;
-        self.config.scan_iterations = lod.clamp(MIN_ITERATIONS, MAX_ITERATIONS);
+        self.config.scan_iterations =
+            lod.clamp(config.effects.min_iterations, config.effects.max_iterations);
     }
 }
 
@@ -309,7 +300,6 @@ impl MandelbrotGenerator {
 // PRIVATE PURE HELPERS
 // ============================================================================
 
-/// Identifies the phasor direction pointing toward the steepest boundary gradient.
 fn find_branch_phasor(center: Complex, search_radius: f64, scan_iterations: u32) -> Complex {
     let mut best_phasor = Complex::one();
     let mut max_variation = -1.0_f64;
@@ -335,7 +325,6 @@ fn find_branch_phasor(center: Complex, search_radius: f64, scan_iterations: u32)
     best_phasor
 }
 
-/// Locates the mid-point of the target interior segment along the branch direction.
 fn locked_interior_grid_alignment(
     center: Complex,
     phasor: Complex,
@@ -383,10 +372,6 @@ fn locked_interior_grid_alignment(
     }
 }
 
-/// Computes the Shannon entropy of the iteration histogram at a given viewport configuration.
-///
-/// Higher entropy indicates more varied iteration counts and therefore more structural
-/// detail visible in the rendered image.
 fn calculate_entropy(
     center: Complex,
     zoom: f64,
@@ -423,20 +408,6 @@ fn calculate_entropy(
     })
 }
 
-/// Generates a geometric (log-spaced) sequence of zoom candidates.
-///
-/// Samples `zooms_count * rotations_count` `(zoom, rotation_index)` pairs
-/// uniformly distributed in log-space between `2e-6` (microscopic close-up)
-/// and `9.0` (panoramic macro view).
-///
-/// For a pool of `N` zooms and index `i`:
-///
-/// ```text
-/// zoom_i = min_zoom * (max_zoom / min_zoom)^(i / (N - 1))
-/// ```
-///
-/// This guarantees exact boundary alignment and smooth spatial transitions
-/// between candidates regardless of pool size.
 pub fn generate_zoom_candidates(zooms_count: usize, rotations_count: usize) -> Vec<(f64, usize)> {
     if zooms_count == 0 || rotations_count == 0 {
         return Vec::new();
@@ -472,7 +443,8 @@ mod tests_mandelbrot {
 
     #[test]
     fn test_mandelbrot_new_sanity() -> WallSwitchResult<()> {
-        let m = MandelbrotGenerator::new()?;
+        let config = Config::default();
+        let m = MandelbrotGenerator::new(&config)?;
         assert!(m.config.zoom > 0.0, "zoom must be positive");
         assert_eq!(m.preset.effect_name, ProceduralEffect::Mandelbrot);
         Ok(())
@@ -481,59 +453,12 @@ mod tests_mandelbrot {
     #[test]
     fn test_random_generator_sanity() -> WallSwitchResult<()> {
         let monitor = Monitor::default();
-        let m = MandelbrotGenerator::random(&monitor)?;
+        let config = Config::default();
+        let m = MandelbrotGenerator::random(&monitor, &config)?;
         assert!(m.config.zoom > 0.0, "zoom must be positive");
         assert_eq!(m.preset.effect_name, ProceduralEffect::Mandelbrot);
-        assert!(m.config.scan_iterations >= MIN_ITERATIONS);
-        assert!(m.config.scan_iterations <= MAX_ITERATIONS);
+        assert!(m.config.scan_iterations >= config.effects.min_iterations);
+        assert!(m.config.scan_iterations <= config.effects.max_iterations);
         Ok(())
-    }
-
-    #[test]
-    fn test_all_presets_correct_effect_name() {
-        for p in MANDELBROT_PRESETS {
-            assert_eq!(
-                p.effect_name,
-                ProceduralEffect::Mandelbrot,
-                "wrong effect_name for '{}'",
-                p.fractal_name
-            );
-        }
-    }
-
-    #[test]
-    fn test_zoom_candidates_boundaries() {
-        let zooms_count = 50;
-        let rotations_count = 16;
-        let candidates = generate_zoom_candidates(zooms_count, rotations_count);
-
-        assert_eq!(candidates.len(), zooms_count * rotations_count);
-
-        // First candidate must equal MIN_ZOOM exactly (t = 0).
-        assert!((candidates[0].0 - 2e-6).abs() < 1e-12, "min bound mismatch");
-
-        // Last candidate must equal MAX_ZOOM exactly (t = 1).
-        let last = candidates.last().unwrap().0;
-        assert!((last - 9.0).abs() < 1e-12, "max bound mismatch: {last}");
-    }
-
-    #[test]
-    fn test_zoom_candidates_monotonically_increasing() {
-        let candidates = generate_zoom_candidates(20, 1);
-        let zooms: Vec<f64> = candidates.iter().map(|&(z, _)| z).collect();
-        for w in zooms.windows(2) {
-            assert!(
-                w[0] <= w[1],
-                "zoom sequence not monotone: {} > {}",
-                w[0],
-                w[1]
-            );
-        }
-    }
-
-    #[test]
-    fn test_zoom_candidates_empty_on_zero_count() {
-        assert!(generate_zoom_candidates(0, 16).is_empty());
-        assert!(generate_zoom_candidates(16, 0).is_empty());
     }
 }

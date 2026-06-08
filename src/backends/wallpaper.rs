@@ -232,7 +232,7 @@ fn apply_selected_effect(
     let resolved = config.effect.resolve();
 
     // 2. Factory builds the resolved dynamic effect polymorphically (propagates Err if any)
-    if let Some(renderer) = resolved.get_renderer(monitor)? {
+    if let Some(renderer) = resolved.get_renderer(monitor, config)? {
         if config.verbose {
             let idx = index.to_string().bold().cyan();
             let name = resolved.get_name().bold().blue();

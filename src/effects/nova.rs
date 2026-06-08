@@ -11,13 +11,15 @@
 //! and c is a fixed perturbation coordinate.
 
 use crate::{
-    ColorRGB, Complex, FractalConfig, FractalDescriptor, Monitor, NEON_PALETTES, RandomExt,
+    ColorRGB, Complex, Config, FractalConfig, FractalDescriptor, Monitor, NEON_PALETTES, RandomExt,
     RelaxedEscape, RelaxedViewportConfig, WallSwitchResult, get_random_integer,
     optimize_relaxed_viewport,
 };
+use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 
 /// A named preset for the Nova Julia fractal.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct NovaPreset {
     /// Integer power of the polynomial f(z) = z^p - 1.
     pub power: u32,
@@ -26,7 +28,7 @@ pub struct NovaPreset {
     /// Complex relaxation factor (R).
     pub r: Complex,
     /// Human-readable name of the structural pattern.
-    pub name: &'static str,
+    pub name: Cow<'static, str>,
 }
 
 const NOVA_ZOOM_RANGE: [f64; 2] = [1.2, 3.2];
@@ -36,7 +38,7 @@ const NOVA_PRESETS: &[NovaPreset] = &[
         power: 3,
         c: Complex { re: 0.10, im: 0.15 },
         r: Complex { re: 1.00, im: 0.00 },
-        name: "Liquid Mercury Flow",
+        name: Cow::Borrowed("Liquid Mercury Flow"),
     },
     NovaPreset {
         power: 3,
@@ -45,13 +47,13 @@ const NOVA_PRESETS: &[NovaPreset] = &[
             im: 0.45,
         },
         r: Complex { re: 1.00, im: 0.00 },
-        name: "Cosmic Plasma Flare",
+        name: Cow::Borrowed("Cosmic Plasma Flare"),
     },
     NovaPreset {
         power: 4,
         c: Complex { re: 0.22, im: 0.10 },
         r: Complex { re: 1.00, im: 0.00 },
-        name: "Ornate Coral Filigree",
+        name: Cow::Borrowed("Ornate Coral Filigree"),
     },
     NovaPreset {
         power: 3,
@@ -60,7 +62,7 @@ const NOVA_PRESETS: &[NovaPreset] = &[
             im: 0.25,
         },
         r: Complex { re: 0.90, im: 0.00 },
-        name: "Nebulous Dust Whispers",
+        name: Cow::Borrowed("Nebulous Dust Whispers"),
     },
     NovaPreset {
         power: 4,
@@ -69,7 +71,7 @@ const NOVA_PRESETS: &[NovaPreset] = &[
             im: 0.35,
         },
         r: Complex { re: 1.00, im: 0.00 },
-        name: "Gilded Lace Tapestry",
+        name: Cow::Borrowed("Gilded Lace Tapestry"),
     },
     NovaPreset {
         power: 5,
@@ -78,223 +80,7 @@ const NOVA_PRESETS: &[NovaPreset] = &[
             im: 0.55,
         },
         r: Complex { re: 1.00, im: 0.00 },
-        name: "Glacial Frost Lattice",
-    },
-    NovaPreset {
-        power: 3,
-        c: Complex { re: 0.00, im: 0.12 },
-        r: Complex { re: 1.15, im: 0.00 },
-        name: "Spiritual Mandala Ripple",
-    },
-    NovaPreset {
-        power: 4,
-        c: Complex {
-            re: 0.30,
-            im: -0.20,
-        },
-        r: Complex { re: 0.80, im: 0.00 },
-        name: "Bioluminescent Spore Nest",
-    },
-    NovaPreset {
-        power: 3,
-        c: Complex {
-            re: 0.18,
-            im: -0.40,
-        },
-        r: Complex { re: 1.00, im: 0.00 },
-        name: "Abyssal Trench Vines",
-    },
-    NovaPreset {
-        power: 6,
-        c: Complex {
-            re: -0.15,
-            im: 0.15,
-        },
-        r: Complex { re: 1.00, im: 0.00 },
-        name: "Hyperdimensional Loom",
-    },
-    NovaPreset {
-        power: 3,
-        c: Complex {
-            re: -0.15,
-            im: 0.35,
-        },
-        r: Complex { re: 1.00, im: 0.15 },
-        name: "Gothic Cathedral Rose",
-    },
-    NovaPreset {
-        power: 5,
-        c: Complex { re: 0.25, im: 0.05 },
-        r: Complex { re: 0.85, im: 0.25 },
-        name: "Quantum Foam Fluctuation",
-    },
-    NovaPreset {
-        power: 4,
-        c: Complex {
-            re: -0.28,
-            im: -0.28,
-        },
-        r: Complex {
-            re: 1.20,
-            im: -0.10,
-        },
-        name: "Stellar Nucleosynthesis",
-    },
-    NovaPreset {
-        power: 6,
-        c: Complex { re: 0.05, im: 0.42 },
-        r: Complex { re: 0.95, im: 0.05 },
-        name: "Emerald Moss Labyrinth",
-    },
-    NovaPreset {
-        power: 7,
-        c: Complex {
-            re: -0.08,
-            im: 0.38,
-        },
-        r: Complex { re: 1.00, im: 0.00 },
-        name: "Bismuth Crystal Citadel",
-    },
-    NovaPreset {
-        power: 3,
-        c: Complex { re: 0.32, im: 0.18 },
-        r: Complex {
-            re: 0.75,
-            im: -0.30,
-        },
-        name: "Astral Jellyfish Canopy",
-    },
-    NovaPreset {
-        power: 4,
-        c: Complex {
-            re: -0.45,
-            im: 0.10,
-        },
-        r: Complex { re: 1.10, im: 0.15 },
-        name: "Solar Prominence Loops",
-    },
-    NovaPreset {
-        power: 5,
-        c: Complex {
-            re: -0.12,
-            im: -0.32,
-        },
-        r: Complex {
-            re: 0.90,
-            im: -0.20,
-        },
-        name: "Aetheric Ley Line Matrix",
-    },
-    NovaPreset {
-        power: 8,
-        c: Complex { re: 0.15, im: 0.15 },
-        r: Complex { re: 1.05, im: 0.10 },
-        name: "Phytoplankton Radiance",
-    },
-    NovaPreset {
-        power: 6,
-        c: Complex {
-            re: -0.22,
-            im: 0.22,
-        },
-        r: Complex { re: 0.80, im: 0.40 },
-        name: "Chronos Vortex Gear",
-    },
-    NovaPreset {
-        power: 5,
-        c: Complex {
-            re: -0.18,
-            im: 0.12,
-        },
-        r: Complex { re: 1.00, im: 0.30 },
-        name: "Aeon Temple Portico",
-    },
-    NovaPreset {
-        power: 8,
-        c: Complex { re: 0.20, im: 0.35 },
-        r: Complex {
-            re: 0.90,
-            im: -0.15,
-        },
-        name: "Hyperborean Crown",
-    },
-    NovaPreset {
-        power: 3,
-        c: Complex {
-            re: -0.33,
-            im: -0.05,
-        },
-        r: Complex { re: 1.10, im: 0.45 },
-        name: "Abyssal Nautilus Shell",
-    },
-    NovaPreset {
-        power: 4,
-        c: Complex {
-            re: 0.15,
-            im: -0.55,
-        },
-        r: Complex { re: 0.70, im: 0.50 },
-        name: "Spectral Dragon Spine",
-    },
-    NovaPreset {
-        power: 3,
-        c: Complex { re: 0.25, im: 0.25 },
-        r: Complex {
-            re: 1.30,
-            im: -0.20,
-        },
-        name: "Opalescent Silk Ribbons",
-    },
-    NovaPreset {
-        power: 5,
-        c: Complex {
-            re: -0.42,
-            im: 0.18,
-        },
-        r: Complex {
-            re: 1.00,
-            im: -0.40,
-        },
-        name: "Phoenix Heart Nebula",
-    },
-    NovaPreset {
-        power: 7,
-        c: Complex {
-            re: 0.30,
-            im: -0.30,
-        },
-        r: Complex { re: 0.85, im: 0.10 },
-        name: "Crystalline Geode Valley",
-    },
-    NovaPreset {
-        power: 6,
-        c: Complex {
-            re: -0.02,
-            im: 0.48,
-        },
-        r: Complex {
-            re: 1.15,
-            im: -0.30,
-        },
-        name: "Eldritch Eye Lattice",
-    },
-    NovaPreset {
-        power: 4,
-        c: Complex {
-            re: -0.25,
-            im: 0.30,
-        },
-        r: Complex { re: 0.90, im: 0.35 },
-        name: "Prismatic Quantum Lattice",
-    },
-    NovaPreset {
-        power: 9,
-        c: Complex {
-            re: 0.08,
-            im: -0.28,
-        },
-        r: Complex { re: 1.00, im: 0.25 },
-        name: "Void Weaver Spindle",
+        name: Cow::Borrowed("Glacial Frost Lattice"),
     },
 ];
 
@@ -312,13 +98,11 @@ impl FractalDescriptor for NovaGenerator {
         &self.config
     }
 
-    /// Nova Julia fractals are centred at the complex origin.
     #[inline(always)]
     fn center(&self) -> Complex {
         Complex::zero()
     }
 
-    /// Nova Julia maps the initial z across the viewport.
     #[inline(always)]
     fn is_julia(&self) -> bool {
         true
@@ -362,18 +146,34 @@ impl FractalDescriptor for NovaGenerator {
 
 impl NovaGenerator {
     /// Constructs a randomised, non-fitted Nova Julia generator.
-    ///
-    /// This is useful as a base constructor, returning an error if
-    /// the preset or color palette tables are empty.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`WallSwitchError::EmptySlice`](crate::WallSwitchError::EmptySlice)
-    /// if the preset or color palette slices are empty.
-    pub fn new() -> WallSwitchResult<Self> {
-        let preset = NOVA_PRESETS.get_random_sample()?;
+    pub fn new(config: &Config) -> WallSwitchResult<Self> {
+        let mut presets = Vec::new();
+
+        if config.effects.add_presets {
+            presets.extend(NOVA_PRESETS.iter().cloned());
+        }
+
+        for custom in &config.effects.nova {
+            presets.push(NovaPreset {
+                power: custom.power,
+                c: custom.c,
+                r: custom.r,
+                name: Cow::Owned(custom.name.clone()),
+            });
+        }
+
+        if presets.is_empty() {
+            presets.extend(NOVA_PRESETS.iter().cloned());
+        }
+
+        let preset = presets.get_random_sample_cloned()?;
         let color_palette = NEON_PALETTES.get_random_sample()?;
-        let scan_iterations = get_random_integer(40, 80);
+
+        // Scale Nova search iterations safely relative to configured boundaries
+        let scan_iterations = get_random_integer(
+            config.effects.min_iterations.min(40),
+            config.effects.max_iterations.clamp(41, 80),
+        );
 
         Ok(Self {
             preset,
@@ -387,16 +187,8 @@ impl NovaGenerator {
     }
 
     /// Constructs a randomised, monitor-fitted Nova Julia generator.
-    ///
-    /// Reuses [`new`](Self::new) to construct the base generator and then
-    /// applies viewport optimization to match the monitor's aspect ratio.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`WallSwitchError::EmptySlice`](crate::WallSwitchError::EmptySlice)
-    /// if the preset or color palette slices are empty.
-    pub fn random(monitor: &Monitor) -> WallSwitchResult<Self> {
-        let mut nova = Self::new()?;
+    pub fn random(monitor: &Monitor, config: &Config) -> WallSwitchResult<Self> {
+        let mut nova = Self::new(config)?;
         nova.optimize_fit(monitor);
         Ok(nova)
     }
@@ -435,11 +227,6 @@ impl NovaGenerator {
 }
 
 /// Evaluates the relaxed Nova Julia recurrence.
-///
-/// Returns `(iteration_count, squared_diff_norm, final_z)`.
-///
-/// The Newton step `(z^p - 1) / (p * z^(p-1))` is computed via
-/// [`Complex::newton_step_term`]; the perturbation `c` is added at every step.
 #[inline(always)]
 pub fn nova_escape(
     z_init: Complex,
@@ -478,7 +265,8 @@ mod tests_nova {
     #[test]
     fn test_nova_random_sanity() -> WallSwitchResult<()> {
         let monitor = Monitor::default();
-        let nova = NovaGenerator::random(&monitor)?;
+        let config = Config::default();
+        let nova = NovaGenerator::random(&monitor, &config)?;
         assert!(nova.config.zoom > 0.0, "zoom must be positive");
         assert!(nova.preset.power > 0);
         assert!((nova.config.rotation.abs() - 1.0).abs() < 1e-9);
@@ -487,7 +275,8 @@ mod tests_nova {
 
     #[test]
     fn test_nova_render_pixel_valid() -> WallSwitchResult<()> {
-        let nova = NovaGenerator::new()?;
+        let config = Config::default();
+        let nova = NovaGenerator::new(&config)?;
         let (rgb, alpha, shadow) = nova.render_pixel(Complex::new(0.5, 0.5), 0.001, 3.0);
         for ch in rgb.to_array() {
             assert!((0.0..=1.0).contains(&ch), "channel out of range: {ch}");

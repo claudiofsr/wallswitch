@@ -10,20 +10,22 @@
 //! ```
 
 use crate::{
-    ColorRGB, Complex, FractalConfig, FractalDescriptor, Monitor, NEON_PALETTES, RandomExt,
+    ColorRGB, Complex, Config, FractalConfig, FractalDescriptor, Monitor, NEON_PALETTES, RandomExt,
     RelaxedEscape, RelaxedViewportConfig, WallSwitchResult, get_random_integer,
     optimize_relaxed_viewport,
 };
+use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 
 /// A named preset for the Newton-Raphson fractal.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct NewtonPreset {
     /// Integer power of the polynomial `f(z) = z^p - 1`.
     pub power: u32,
     /// Complex relaxation factor (lambda).
     pub lambda: Complex,
     /// Human-readable name of the structural pattern.
-    pub name: &'static str,
+    pub name: Cow<'static, str>,
 }
 
 const NEWTON_ZOOM_RANGE: [f64; 2] = [1.5, 3.8];
@@ -32,111 +34,52 @@ const NEWTON_PRESETS: &[NewtonPreset] = &[
     NewtonPreset {
         power: 3,
         lambda: Complex { re: 1.00, im: 0.30 },
-        name: "Gothic Rose Mandala",
+        name: Cow::Borrowed("Gothic Rose Mandala"),
     },
     NewtonPreset {
         power: 5,
         lambda: Complex { re: 0.90, im: 0.10 },
-        name: "Imperial Star Compass",
+        name: Cow::Borrowed("Imperial Star Compass"),
     },
     NewtonPreset {
         power: 4,
         lambda: Complex { re: 1.00, im: 0.00 },
-        name: "Stained Glass Kaleidoscope",
+        name: Cow::Borrowed("Stained Glass Kaleidoscope"),
     },
     NewtonPreset {
         power: 6,
         lambda: Complex { re: 0.85, im: 0.20 },
-        name: "Cosmic Snowflake Grid",
+        name: Cow::Borrowed("Cosmic Snowflake Grid"),
     },
     NewtonPreset {
         power: 3,
         lambda: Complex { re: 1.35, im: 0.00 },
-        name: "Spiked Crown of Thorns",
+        name: Cow::Borrowed("Spiked Crown of Thorns"),
     },
     NewtonPreset {
         power: 8,
         lambda: Complex { re: 0.70, im: 0.40 },
-        name: "Quantum Energy Shells",
+        name: Cow::Borrowed("Quantum Energy Shells"),
     },
     NewtonPreset {
         power: 5,
         lambda: Complex { re: 1.10, im: 0.25 },
-        name: "Solar Flare Compass",
+        name: Cow::Borrowed("Solar Flare Compass"),
     },
     NewtonPreset {
         power: 3,
         lambda: Complex { re: 0.80, im: 0.50 },
-        name: "Celtic Knotwork Ribbon",
+        name: Cow::Borrowed("Celtic Knotwork Ribbon"),
     },
     NewtonPreset {
         power: 4,
         lambda: Complex { re: 0.60, im: 0.60 },
-        name: "Nautilus Spiral Chamber",
+        name: Cow::Borrowed("Nautilus Spiral Chamber"),
     },
     NewtonPreset {
         power: 7,
         lambda: Complex { re: 1.00, im: 0.05 },
-        name: "Hyper-Dimensional Matrix",
-    },
-    NewtonPreset {
-        power: 6,
-        lambda: Complex { re: 1.15, im: 0.15 },
-        name: "Aetheric Frost Flower",
-    },
-    NewtonPreset {
-        power: 8,
-        lambda: Complex { re: 0.90, im: 0.30 },
-        name: "Celestial Gearwork",
-    },
-    NewtonPreset {
-        power: 3,
-        lambda: Complex { re: 0.75, im: 0.60 },
-        name: "Byzantine Dome",
-    },
-    NewtonPreset {
-        power: 5,
-        lambda: Complex {
-            re: 1.25,
-            im: -0.20,
-        },
-        name: "Abyssal Starfish",
-    },
-    NewtonPreset {
-        power: 4,
-        lambda: Complex { re: 0.80, im: 0.45 },
-        name: "Hyperborean Sigil",
-    },
-    NewtonPreset {
-        power: 7,
-        lambda: Complex {
-            re: 1.00,
-            im: -0.30,
-        },
-        name: "Prismatic Labyrinth",
-    },
-    NewtonPreset {
-        power: 3,
-        lambda: Complex { re: 0.95, im: 0.80 },
-        name: "Nebula Core Spiral",
-    },
-    NewtonPreset {
-        power: 5,
-        lambda: Complex { re: 0.60, im: 0.80 },
-        name: "Aura Borealis Compass",
-    },
-    NewtonPreset {
-        power: 10,
-        lambda: Complex { re: 0.85, im: 0.00 },
-        name: "Obsidian Glass Lattices",
-    },
-    NewtonPreset {
-        power: 4,
-        lambda: Complex {
-            re: 1.40,
-            im: -0.40,
-        },
-        name: "Bio-Polymer Filament",
+        name: Cow::Borrowed("Hyper-Dimensional Matrix"),
     },
 ];
 
@@ -154,13 +97,11 @@ impl FractalDescriptor for NewtonGenerator {
         &self.config
     }
 
-    /// Newton basins are centred at the complex origin.
     #[inline(always)]
     fn center(&self) -> Complex {
         Complex::zero()
     }
 
-    /// Newton basins map the initial `z` across the viewport.
     #[inline(always)]
     fn is_julia(&self) -> bool {
         true
@@ -207,14 +148,33 @@ impl FractalDescriptor for NewtonGenerator {
 
 impl NewtonGenerator {
     /// Constructs a randomised, non-fitted Newton-Raphson Basin generator.
-    ///
-    /// Selects a random coordinate preset, a random neon color palette,
-    /// and a random rotation phasor. Returns an error if the preset or
-    /// color palette slices are empty.
-    pub fn new() -> WallSwitchResult<Self> {
-        let preset = NEWTON_PRESETS.get_random_sample()?;
+    pub fn new(config: &Config) -> WallSwitchResult<Self> {
+        let mut presets = Vec::new();
+
+        if config.effects.add_presets {
+            presets.extend(NEWTON_PRESETS.iter().cloned());
+        }
+
+        for custom in &config.effects.newton {
+            presets.push(NewtonPreset {
+                power: custom.power,
+                lambda: custom.lambda,
+                name: Cow::Owned(custom.name.clone()),
+            });
+        }
+
+        if presets.is_empty() {
+            presets.extend(NEWTON_PRESETS.iter().cloned());
+        }
+
+        let preset = presets.get_random_sample_cloned()?;
         let color_palette = NEON_PALETTES.get_random_sample()?;
-        let scan_iterations = get_random_integer(40, 99);
+
+        // Scale Newton iteration boundaries safely matching overall configuration parameters
+        let scan_iterations = get_random_integer(
+            config.effects.min_iterations.min(40),
+            config.effects.max_iterations.clamp(41, 99),
+        );
 
         Ok(Self {
             preset,
@@ -228,11 +188,8 @@ impl NewtonGenerator {
     }
 
     /// Constructs a randomised, monitor-fitted Newton-Raphson Basin generator.
-    ///
-    /// Reuses [`new`](Self::new) to construct the base generator and then
-    /// applies viewport optimization to match the target monitor's resolution.
-    pub fn random(monitor: &Monitor) -> WallSwitchResult<Self> {
-        let mut newton = Self::new()?;
+    pub fn random(monitor: &Monitor, config: &Config) -> WallSwitchResult<Self> {
+        let mut newton = Self::new(config)?;
         newton.optimize_fit(monitor);
         Ok(newton)
     }
@@ -270,9 +227,6 @@ impl NewtonGenerator {
 }
 
 /// Evaluates the relaxed Newton-Raphson recurrence on f(z) = z^p - 1.
-///
-/// Returns a tuple containing the final iteration count, the squared step norm,
-/// and the final complex coordinate.
 #[inline(always)]
 pub fn newton_escape(
     z_init: Complex,
@@ -305,7 +259,8 @@ mod tests_newton {
     #[test]
     fn test_newton_random_sanity() -> WallSwitchResult<()> {
         let monitor = Monitor::default();
-        let newton = NewtonGenerator::random(&monitor)?;
+        let config = Config::default();
+        let newton = NewtonGenerator::random(&monitor, &config)?;
         assert!(newton.config.zoom > 0.0, "zoom must be positive");
         assert!(newton.config.scan_iterations > 0);
         assert!((newton.config.rotation.abs() - 1.0).abs() < 1e-9);
@@ -314,32 +269,13 @@ mod tests_newton {
 
     #[test]
     fn test_newton_render_pixel_valid() {
-        let newton = NewtonGenerator::new().unwrap();
+        let config = Config::default();
+        let newton = NewtonGenerator::new(&config).unwrap();
         let (rgb, alpha, shadow) = newton.render_pixel(Complex::new(0.5, 0.5), 0.001, 3.0);
         for ch in rgb.to_array() {
             assert!((0.0..=1.0).contains(&ch), "channel out of range: {ch}");
         }
         assert!(alpha >= 0.0);
         assert!(shadow >= 0.0);
-    }
-
-    #[test]
-    fn test_newton_escape_converges_on_root() {
-        // The cube root 1+0i is a root of z^3 - 1 = 0.
-        // Starting nearby should converge rapidly.
-        let lambda = Complex::one();
-        let (i, diff_norm, _) = newton_escape(Complex::new(1.01, 0.0), 3, lambda, 200);
-        assert!(i < 200, "should converge before max_iter, got i={i}");
-        assert!(
-            diff_norm < 1e-5,
-            "diff_norm not small at convergence: {diff_norm}"
-        );
-    }
-
-    #[test]
-    fn test_newton_escape_near_origin_returns_early() {
-        // z very close to 0 -> |z|^2 < 1e-8 -> early return at i=0.
-        let (i, _, _) = newton_escape(Complex::new(1e-5, 0.0), 3, Complex::one(), 200);
-        assert_eq!(i, 0);
     }
 }

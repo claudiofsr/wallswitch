@@ -12,7 +12,8 @@ use crate::effects::{
     newton::NewtonGenerator, nova::NovaGenerator, star::StarfieldGenerator,
 };
 use crate::{
-    ColorRGB, Complex, Monitor, NeonColor, WallSwitchError, WallSwitchResult, get_random_integer,
+    ColorRGB, Complex, Config, Monitor, NeonColor, WallSwitchError, WallSwitchResult,
+    get_random_integer,
 };
 use clap::ValueEnum;
 use image::RgbImage;
@@ -278,12 +279,16 @@ impl ProceduralEffect {
     /// # Errors
     ///
     /// Returns a [`WallSwitchError`] if the generator initialization fails.
-    pub fn get_renderer(self, monitor: &Monitor) -> WallSwitchResult<Option<Box<dyn ImageEffect>>> {
+    pub fn get_renderer(
+        self,
+        monitor: &Monitor,
+        config: &Config,
+    ) -> WallSwitchResult<Option<Box<dyn ImageEffect>>> {
         let renderer: Option<Box<dyn ImageEffect>> = match self {
-            Self::JuliaSet => Some(Box::new(JuliaGenerator::random(monitor)?)),
-            Self::Mandelbrot => Some(Box::new(MandelbrotGenerator::random(monitor)?)),
-            Self::NewtonBasins => Some(Box::new(NewtonGenerator::random(monitor)?)),
-            Self::NovaJulia => Some(Box::new(NovaGenerator::random(monitor)?)),
+            Self::JuliaSet => Some(Box::new(JuliaGenerator::random(monitor, config)?)),
+            Self::Mandelbrot => Some(Box::new(MandelbrotGenerator::random(monitor, config)?)),
+            Self::NewtonBasins => Some(Box::new(NewtonGenerator::random(monitor, config)?)),
+            Self::NovaJulia => Some(Box::new(NovaGenerator::random(monitor, config)?)),
             Self::Starfield => Some(Box::new(StarfieldGenerator::random(monitor)?)),
             Self::CosmicAurora => Some(Box::new(AuroraGenerator::random(monitor)?)),
             _ => None,
@@ -298,12 +303,12 @@ impl ProceduralEffect {
 // ============================================================================
 
 /// A named complex-coordinate preset for escape-time fractal viewports.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FractalPreset {
     /// Focal centre in the complex plane.
     pub center: Complex,
     /// Human-readable name of the structural pattern.
-    pub fractal_name: &'static str,
+    pub fractal_name: std::borrow::Cow<'static, str>,
     /// Which effect category this preset belongs to.
     pub effect_name: ProceduralEffect,
 }

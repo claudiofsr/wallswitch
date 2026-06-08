@@ -74,7 +74,7 @@ fn ensure_daemon_running(config: &Config) -> WallSwitchResult<()> {
             println!("[DRY-RUN] Would terminate previous swaybg instances.");
         } else {
             let _ = Command::new("killall").arg("swaybg").output();
-            
+
             // Wait a brief moment to ensure the OS terminates the process and frees resources
             thread::sleep(Duration::from_millis(150));
         }
