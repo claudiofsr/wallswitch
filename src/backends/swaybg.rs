@@ -2,7 +2,11 @@ use crate::{
     Config, DaemonConfig, DaemonManager, FileInfo, WallSwitchError, WallSwitchResult,
     WallpaperBackend, detect_monitors,
 };
-use std::process::{Command, Stdio};
+use std::{
+    process::{Command, Stdio},
+    thread,
+    time::Duration,
+};
 
 /// Backend implementing static wallpaper rendering on Wayland via `swaybg`.
 pub struct SwaybgBackend;
@@ -32,6 +36,9 @@ impl WallpaperBackend for SwaybgBackend {
                 .stderr(Stdio::null())
                 .spawn()
                 .map_err(WallSwitchError::Io)?;
+
+            // Allow a brief initialization window for socket setup
+            thread::sleep(Duration::from_millis(300));
             Ok(())
         })?;
 
