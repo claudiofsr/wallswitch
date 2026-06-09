@@ -29,8 +29,8 @@ const MANDELBROT_PRESETS: &[FractalPreset] = &[
     },
     FractalPreset {
         center: Complex {
-            re: -0.156,
-            im: 1.033,
+            re: -0.175,
+            im: 0.850,
         },
         fractal_name: Cow::Borrowed("Dreadlock Valley Basin"),
         effect_name: ProceduralEffect::Mandelbrot,
@@ -413,7 +413,7 @@ pub fn generate_zoom_candidates(zooms_count: usize, rotations_count: usize) -> V
         return Vec::new();
     }
 
-    const MIN_ZOOM: f64 = 2e-5;
+    const MIN_ZOOM: f64 = 1e-6;
     const MAX_ZOOM: f64 = 9.0;
     let log_ratio = MAX_ZOOM / MIN_ZOOM;
 
