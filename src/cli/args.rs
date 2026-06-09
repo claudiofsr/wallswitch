@@ -231,6 +231,7 @@ pub struct Arguments {
 
     /// Set a custom minimum iteration limit for escape-time fractal calculations.
     #[arg(
+        short('n'),
         long("effects-min-iterations"),
         value_name = "MIN_ITERATIONS",
         required = false,
@@ -240,6 +241,7 @@ pub struct Arguments {
 
     /// Set a custom maximum iteration limit for escape-time fractal calculations.
     #[arg(
+        short('N'),
         long("effects-max-iterations"),
         value_name = "MAX_ITERATIONS",
         required = false,
