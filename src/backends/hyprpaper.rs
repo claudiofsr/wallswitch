@@ -32,67 +32,34 @@ impl WallpaperBackend for HyprlandBackend {
                 .stdout(Stdio::null())
                 .stderr(Stdio::null())
                 .spawn()
-                .map_err(|err| {
-                    WallSwitchError::UnableToFind(format!(
-                        "Failed to spawn hyprpaper background daemon. Is it installed? Details: {err}"
-                    ))
-                })?;
+                .map_err(|e| WallSwitchError::AwwwDaemonError(e.to_string()))?;
 
-            // Allow a brief initialization window for socket/EGL context setup
+            // Allow a brief initialization window for socket setup
             thread::sleep(Duration::from_millis(300));
             Ok(())
         })?;
 
-        // Check which images are already preloaded
-        let mut check_cmd = Command::new("hyprctl");
-        check_cmd.args(["hyprpaper", "listloaded"]);
-
-        let loaded_str = match check_cmd.run_with_config(config, "Check loaded hyprpaper images")? {
-            out if out.status.success() => String::from_utf8_lossy(&out.stdout).to_string(),
-            _ => {
-                if config.dry_run {
-                    "[DRY-RUN] hyprpaper daemon is offline".to_string()
-                } else {
-                    return Err(WallSwitchError::UnableToFind(
-                        "hyprpaper daemon not running".into(),
-                    ));
-                }
-            }
-        };
-
+        // Cycle through images and apply them to the detected monitors.
         for (image, monitor) in images.iter().cycle().zip(&monitors) {
             let path_str = image.path.to_str().unwrap_or_default();
 
-            // Preload the image if it's not already in the loaded list
-            if !loaded_str.contains(path_str) {
-                let mut preload_cmd = Command::new("hyprctl");
-                preload_cmd.args(["hyprpaper", "preload", path_str]);
-
-                // We ignore the result here as per original behavior,
-                // but run_with_config handles the verbosity/dry_run logging.
-                let _ = preload_cmd.run_with_config(config, &format!("Preload {path_str}"));
-            }
-
-            // Apply the wallpaper to the specific monitor
+            // Aplicar o wallpaper
             let mut wall_cmd = Command::new("hyprctl");
             let wall_arg = format!("{monitor},{path_str}");
             wall_cmd.args(["hyprpaper", "wallpaper", &wall_arg]);
 
-            wall_cmd.run_with_config(config, &format!("Apply wallpaper on {monitor}"))?;
+            if config.dry_run {
+                println!("[DRY-RUN] Would execute: {:?}", wall_cmd);
+            } else {
+                // Se o comando de aplicar falhar aqui, o programa para,
+                // pois é a ação principal.
+                wall_cmd.run_with_config(config, &format!("Apply wallpaper on {monitor}"))?;
+            }
         }
-
-        // Cleanup unused wallpapers
-        let mut unload_cmd = Command::new("hyprctl");
-        unload_cmd.args(["hyprpaper", "unload", "unused"]);
-        let _ = unload_cmd.run_with_config(config, "Unload unused hyprpaper images");
 
         Ok(())
     }
 }
-
-//----------------------------------------------------------------------------//
-//                                   Tests                                    //
-//----------------------------------------------------------------------------//
 
 #[cfg(test)]
 mod tests_hyprpaper_backend {

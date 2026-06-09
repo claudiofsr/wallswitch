@@ -2,6 +2,8 @@ use crate::{Config, WallSwitchError, WallSwitchResult};
 use std::{
     io::Write,
     process::{Command, Output},
+    thread,
+    time::Duration,
 };
 use sysinfo::{ProcessRefreshKind, ProcessesToUpdate, System, UpdateKind};
 
@@ -79,7 +81,7 @@ impl DaemonManager {
         if let Some(kill_name) = daemon.kill_cmd {
             let _ = Command::new("killall").arg(kill_name).output();
             // Wait briefly to allow the kernel to clean up the terminated process
-            std::thread::sleep(std::time::Duration::from_millis(150));
+            thread::sleep(Duration::from_millis(150));
         }
 
         spawn()?;
