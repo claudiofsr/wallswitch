@@ -1,6 +1,6 @@
 use crate::{
-    Config, FileInfo, WallSwitchError, WallSwitchResult, WallpaperBackend, backends,
-    detect_monitors, exec_cmd, get_random_integer,
+    CommandExt, Config, DaemonConfig, DaemonManager, FileInfo, WallSwitchError, WallSwitchResult,
+    WallpaperBackend, detect_monitors, get_random_integer,
 };
 use std::{
     env, fs,
@@ -20,8 +20,28 @@ impl WallpaperBackend for AwwwBackend {
             println!("monitors:\n{monitors:#?}\n");
         }
 
-        // Starts or restarts daemon if necessary
-        ensure_daemon_running(config)?;
+        // Define the lifecycle configuration for the aww daemon
+        let daemon_cfg = DaemonConfig {
+            name: "awww-daemon",
+            spawn_cmd: "awww-daemon",
+            kill_cmd: Some("awww-daemon"),
+        };
+
+        // Ensure daemon is running using the centralized manager
+        DaemonManager::ensure_running(config, &daemon_cfg, || {
+            // aww-specific: clean stale sockets before spawning
+            clean_stale_sockets();
+
+            Command::new(daemon_cfg.spawn_cmd)
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn()
+                .map_err(|e| WallSwitchError::AwwwDaemonError(e.to_string()))?;
+
+            // Allow a brief initialization window for socket setup
+            thread::sleep(Duration::from_millis(300));
+            Ok(())
+        })?;
 
         // Cycle through images to ensure all monitors receive a command,
         // avoiding issues when detected monitors > configured monitors.
@@ -40,15 +60,8 @@ impl WallpaperBackend for AwwwBackend {
                 .args(["--transition-angle", &config.transition_angle.to_string()])
                 .args(["--transition-pos", &config.transition_pos]);
 
-            if config.dry_run {
-                println!("[DRY-RUN] Would execute: {:?}", cmd);
-            } else {
-                exec_cmd(
-                    &mut cmd,
-                    config.verbose,
-                    &format!("Apply awww on {monitor}"),
-                )?;
-            }
+            // Use the CommandExt trait for idiomatic execution
+            cmd.run_with_config(config, &format!("Apply awww on {monitor}"))?;
         }
 
         Ok(())
@@ -70,36 +83,8 @@ fn get_transition_effect(config: &Config) -> String {
     }
 }
 
-/// Helper status check to verify if the background process is active.
-fn is_daemon_alive() -> bool {
-    backends::is_process_running("awww-daemon")
-}
-
-/// Standardized coordinator to clean stale environments and safely spin up the background process.
-fn ensure_daemon_running(config: &Config) -> WallSwitchResult<()> {
-    backends::ensure_background_daemon(config, "awww-daemon", is_daemon_alive, || {
-        // Send termination signal to any existing daemon
-        let _ = Command::new("killall").arg("awww-daemon").output();
-
-        // Wait briefly to allow the kernel to clean up the terminated process
-        thread::sleep(Duration::from_millis(150));
-
-        // Remove stale socket files safely
-        clean_stale_sockets();
-
-        Command::new("awww-daemon")
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()
-            .map_err(|e| WallSwitchError::AwwwDaemonError(e.to_string()))?;
-
-        // Allow a brief initialization window for socket setup
-        thread::sleep(Duration::from_millis(300));
-        Ok(())
-    })
-}
-
 /// Cleans orphaned local domain sockets to prevent connectivity locks.
+/// This is specific to the `awww` backend requirements.
 fn clean_stale_sockets() {
     let runtime_dir = env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".to_string());
     if let Ok(entries) = fs::read_dir(&runtime_dir) {
@@ -118,10 +103,10 @@ fn clean_stale_sockets() {
 
 #[cfg(test)]
 mod tests_awww_backend {
-    use super::*;
+    use crate::is_process_running;
 
     #[test]
     fn test_is_daemon_alive_on_idle() {
-        let _ = is_daemon_alive();
+        let _ = is_process_running("awww-daemon");
     }
 }

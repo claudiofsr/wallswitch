@@ -1,10 +1,10 @@
-use crate::{Config, Desktop, WallSwitchError, WallSwitchResult, exec_cmd, is_installed};
+use crate::{CommandExt, Config, Desktop, WallSwitchError, WallSwitchResult, is_installed};
 use std::{fs, path::PathBuf, process::Command};
 
 /// Detects active outputs (monitors) using a robust fallback chain.
-/// Returns a WallSwitchResult wrapping a Vector of monitor property strings.
+/// Returns a `WallSwitchResult` wrapping a Vector of monitor property strings.
 ///
-/// If all detection methods fail, it returns a formal WallSwitchError instead of
+/// If all detection methods fail, it returns a formal `WallSwitchError` instead of
 /// relying on hardcoded defaults.
 pub fn detect_monitors(config: &Config) -> WallSwitchResult<Vec<String>> {
     let mut monitors = Vec::new();
@@ -35,7 +35,7 @@ pub fn detect_monitors(config: &Config) -> WallSwitchResult<Vec<String>> {
                 "/backdrop",
                 "--list",
             ]);
-            if let Ok(out) = exec_cmd(&mut cmd, config.verbose, "xfconf-query") {
+            if let Ok(out) = cmd.run_with_config(config, "xfconf-query") {
                 monitors = parse_xfce(
                     &String::from_utf8_lossy(&out.stdout),
                     &active_xrandr_monitors,
@@ -66,7 +66,6 @@ pub fn detect_monitors(config: &Config) -> WallSwitchResult<Vec<String>> {
     }
 
     // 4. Fatal Error: If we reached this point, no active monitors were found.
-    // Instead of using a fake default, we raise a NoMonitors error.
     Err(WallSwitchError::NoMonitors(
         "any system tool (X11/Wayland/DRM)".to_string(),
     ))
@@ -81,7 +80,7 @@ pub fn get_active_xrandr_monitors(config: &Config) -> Vec<String> {
     if is_installed("xrandr") {
         let mut cmd = Command::new("xrandr");
         cmd.args(["--listactivemonitors"]);
-        if let Ok(out) = exec_cmd(&mut cmd, config.verbose, "xrandr") {
+        if let Ok(out) = cmd.run_with_config(config, "xrandr") {
             let stdout = String::from_utf8_lossy(&out.stdout);
             monitors = parse_xrandr(&stdout);
         }
@@ -90,16 +89,7 @@ pub fn get_active_xrandr_monitors(config: &Config) -> Vec<String> {
     monitors
 }
 
-/*
-┌─[claudio@manjaro] - [~/Documents/Rust/projects/wallswitch] - [seg mai 18, 10:16]
-└─[$] <git:(master*)> xrandr --listactivemonitors
-Monitors: 2
- 0: +DP-2 3840/621x2160/341+0+0  DP-2
- 1: +DP-0 3840/621x2160/341+3840+0  DP-0
-┌─[claudio@manjaro] - [~/Documents/Rust/projects/wallswitch] - [seg mai 18, 10:16]
-└─[$] <git:(master*)>
-*/
-
+/// Pure parser for xrandr output.
 pub fn parse_xrandr(stdout: &str) -> Vec<String> {
     stdout
         .lines()
@@ -159,6 +149,7 @@ pub fn parse_xfce(stdout: &str, active_monitors: &[String]) -> Vec<String> {
     final_properties
 }
 
+/// Prunes stale XFCE configurations that no longer correspond to active hardware.
 pub fn prune_stale_xfce_configs(
     config: &Config,
     active_monitors: &[String],
@@ -176,7 +167,7 @@ pub fn prune_stale_xfce_configs(
         "--list",
     ]);
 
-    if let Ok(output) = cmd.output() {
+    if let Ok(output) = cmd.run_with_config(config, "xfconf-query") {
         let stdout = String::from_utf8_lossy(&output.stdout);
         let stale_properties: Vec<String> = stdout
             .lines()
@@ -200,16 +191,16 @@ pub fn prune_stale_xfce_configs(
                         monitor_root
                     );
                 } else {
-                    let _ = Command::new("xfconf-query")
-                        .args([
-                            "--channel",
-                            "xfce4-desktop",
-                            "--property",
-                            monitor_root,
-                            "--reset",
-                            "--recursive",
-                        ])
-                        .output();
+                    let mut reset_cmd = Command::new("xfconf-query");
+                    reset_cmd.args([
+                        "--channel",
+                        "xfce4-desktop",
+                        "--property",
+                        monitor_root,
+                        "--reset",
+                        "--recursive",
+                    ]);
+                    let _ = reset_cmd.run_with_config(config, &format!("Reset {}", monitor_root));
                 }
             }
         }
@@ -217,7 +208,7 @@ pub fn prune_stale_xfce_configs(
     Ok(())
 }
 
-/// Pure parser for Niri output
+/// Pure parser for Niri output.
 pub fn parse_niri(stdout: &str) -> Vec<String> {
     stdout
         .lines()
@@ -234,7 +225,7 @@ pub fn parse_niri(stdout: &str) -> Vec<String> {
         .collect()
 }
 
-/// Pure parser for Hyprland output
+/// Pure parser for Hyprland output.
 pub fn parse_hyprland(stdout: &str) -> Vec<String> {
     stdout
         .lines()
@@ -243,7 +234,7 @@ pub fn parse_hyprland(stdout: &str) -> Vec<String> {
         .collect()
 }
 
-/// Pure parser for wlr-randr output
+/// Pure parser for wlr-randr output.
 pub fn parse_wlr_randr(stdout: &str) -> Vec<String> {
     stdout
         .lines()
@@ -252,7 +243,7 @@ pub fn parse_wlr_randr(stdout: &str) -> Vec<String> {
         .collect()
 }
 
-/// Hardware DRM parser
+/// Hardware DRM parser for Linux kernel.
 fn detect_drm_monitors() -> Vec<String> {
     let mut monitors = Vec::new();
     let drm_path = PathBuf::from("/sys/class/drm");
@@ -278,8 +269,6 @@ fn detect_drm_monitors() -> Vec<String> {
 //                                   Tests                                    //
 //----------------------------------------------------------------------------//
 
-/// Run tests with:
-/// cargo test -- --show-output tests_detector
 #[cfg(test)]
 mod tests_detector {
     use super::*;

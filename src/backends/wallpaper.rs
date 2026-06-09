@@ -1,14 +1,12 @@
 use crate::{
-    AwwwBackend, Colors, Config, Desktop, Dimension, FileInfo, HyprlandBackend, Monitor,
+    AwwwBackend, Colors, CommandExt, Config, Desktop, Dimension, FileInfo, HyprlandBackend,
+    Monitor,
     Orientation::{Horizontal, Vertical},
     ProceduralEffect, SwaybgBackend, U8Extension, WallSwitchError, WallSwitchResult,
     detect_monitors, is_installed,
 };
 use image::{RgbImage, imageops::FilterType};
-use std::{
-    io::Error,
-    process::{Command, Output},
-};
+use std::{io::Error, process::Command};
 
 /// Core trait defining the wallpaper application logic.
 /// Follows the "Functional Core, Imperative Shell" pattern.
@@ -27,11 +25,8 @@ pub trait WallpaperBackend {
         let mut commands = Self::build_commands(images, config)?;
         for cmd in commands.iter_mut() {
             let program_name = cmd.get_program().to_string_lossy().to_string();
-            if config.dry_run {
-                println!("[DRY-RUN] Would execute: {:?}", cmd);
-            } else {
-                exec_cmd(cmd, config.verbose, &format!("Executing {program_name}"))?;
-            }
+            // Using the new CommandExt trait for unified execution
+            cmd.run_with_config(config, &format!("Executing {program_name}"))?;
         }
         Ok(())
     }
@@ -53,14 +48,12 @@ pub fn set_wallpaper(images: &[FileInfo], config: &Config) -> WallSwitchResult<(
     // 2. Dispatch to the appropriate backend using the compiled single-image-per-monitor files
     match config.desktop {
         Desktop::Gnome => {
-            // Gnome requires stitching the compiled monitor images together into a single spanned file
             if config.dry_run {
                 println!(
                     "[DRY-RUN] Would stitch compiled monitor canvases together to generate final spanned wallpaper."
                 );
             } else {
-                // Memory optimized: Instead of loading all canvases into an intermediate vector,
-                // we pass `&compiled_images` directly. The function now opens and overlays them sequentially.
+                // Memory optimized: Sequential loading to keep peak RSS low.
                 let final_wallpaper = assemble_final_wallpaper(&compiled_images, config)?;
                 final_wallpaper
                     .save(&config.wallpaper)
@@ -263,12 +256,6 @@ fn compile_single_monitor_background(
                 "[DRY-RUN] Would compile backgrounds for Monitor {index} at resolution {}x{}",
                 monitor.resolution.width, monitor.resolution.height
             );
-            if config.effect != ProceduralEffect::None {
-                println!(
-                    "[DRY-RUN] Would apply randomized overlay effect: {:?}",
-                    config.effect
-                );
-            }
         }
     } else {
         // 1. Assemble separate pictures into a single composite monitor background in-memory
@@ -327,7 +314,6 @@ pub fn compile_wallpapers_for_monitors(
         for (index, (partition, monitor)) in
             partitions.into_iter().zip(&config.monitors).enumerate()
         {
-            // Spawn separate tasks for each physical display to optimize hardware efficiency
             let thread_handle = scope.spawn(move || -> WallSwitchResult<FileInfo> {
                 compile_single_monitor_background(partition, monitor, config, index)
             });
@@ -414,6 +400,7 @@ fn assemble_monitor_canvas(
 }
 
 /// Stitches all compiled monitor canvases together to generate the final spanned multi-monitor wallpaper in-memory.
+///
 /// Loads and processes each monitor image sequentially to prevent holding multiple uncompressed high-resolution
 /// buffers in memory at the same time, significantly reducing peak RSS.
 fn assemble_final_wallpaper(
@@ -474,42 +461,4 @@ fn get_partitions_iter<'a>(
         images = tail;
         head
     })
-}
-
-/// Executes system command processes
-pub fn exec_cmd(cmd: &mut Command, verbose: bool, msg: &str) -> WallSwitchResult<Output> {
-    let output: Output = cmd.output().map_err(|e| {
-        eprintln!("Failed to execute command: {:?}", cmd.get_program());
-        WallSwitchError::Io(e)
-    })?;
-
-    let program = cmd.get_program();
-    let arguments: Vec<_> = cmd.get_args().collect();
-
-    if !output.status.success() || verbose {
-        println!("\nprogram: {program:?}");
-        println!("arguments: {arguments:#?}");
-
-        let stdout = String::from_utf8_lossy(&output.stdout);
-
-        if !stdout.trim().is_empty() {
-            println!("stdout:'{}'\n", stdout.trim());
-        }
-    }
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        let status = output.status;
-
-        eprintln!("{msg} status: {status}");
-        eprintln!("{msg} stderr: {stderr}");
-
-        return Err(WallSwitchError::CommandFailed {
-            program: format!("{:?}", cmd.get_program()),
-            status: output.status.to_string(),
-            stderr: String::from_utf8_lossy(&output.stderr).to_string(),
-        });
-    }
-
-    Ok(output)
 }
