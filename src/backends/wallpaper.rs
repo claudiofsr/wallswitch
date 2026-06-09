@@ -6,6 +6,7 @@ use crate::{
     detect_monitors, is_installed,
 };
 use image::{RgbImage, imageops::FilterType};
+use rayon::prelude::*; // Required for parallel iterators
 use std::{io::Error, process::Command};
 
 /// Core trait defining the wallpaper application logic.
@@ -293,6 +294,10 @@ fn compile_single_monitor_background(
 }
 
 /// Pre-processes and compiles separate multi-picture composite backgrounds in parallel for each monitor.
+///
+/// This implementation uses Rayon for data parallelism, which provides a work-stealing scheduler
+/// to efficiently balance the workload across all available CPU cores, especially useful when
+/// monitors have varying resolutions or complex effects are applied.
 pub fn compile_wallpapers_for_monitors(
     images: &[FileInfo],
     config: &Config,
@@ -305,28 +310,19 @@ pub fn compile_wallpapers_for_monitors(
         }
     }
 
-    let partitions: Vec<_> = get_partitions_iter(images, config).collect();
-    let mut compiled_files = Vec::new();
+    // 1. First, collect the partitions into a Vec so we can use Rayon's parallel iterator.
+    let partitions: Vec<&[FileInfo]> = get_partitions_iter(images, config).collect();
 
-    std::thread::scope(|scope| {
-        let mut threads = Vec::new();
-
-        for (index, (partition, monitor)) in
-            partitions.into_iter().zip(&config.monitors).enumerate()
-        {
-            let thread_handle = scope.spawn(move || -> WallSwitchResult<FileInfo> {
-                compile_single_monitor_background(partition, monitor, config, index)
-            });
-            threads.push(thread_handle);
-        }
-
-        for handle in threads {
-            let file_info = handle.join().unwrap()?;
-            compiled_files.push(file_info);
-        }
-
-        Ok::<(), WallSwitchError>(())
-    })?;
+    // 2. Use Rayon to process the partitions in parallel.
+    // We use .par_iter() on monitors to ensure the zip operation is also parallel.
+    let compiled_files = partitions
+        .into_par_iter()
+        .zip(&config.monitors)
+        .enumerate()
+        .map(|(index, (partition, monitor))| {
+            compile_single_monitor_background(partition, monitor, config, index)
+        })
+        .collect::<WallSwitchResult<Vec<_>>>()?;
 
     Ok(compiled_files)
 }
