@@ -1,0 +1,7 @@
+/target
+*.avif
+*.webp
+*.jpg
+
+# Exception: allow tracking the wallswitch example images
+!examples/wallswitch_monitor_*.jpg
