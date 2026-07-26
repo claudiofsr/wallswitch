@@ -1030,6 +1030,16 @@ impl DivAssign<f64> for Complex {
     }
 }
 
+//----------------------------------------------------------------------------//
+//                                   Tests                                    //
+//----------------------------------------------------------------------------//
+
+// cargo test -- --help
+// cargo test -- --nocapture
+// cargo test -- --show-output
+
+/// Run tests with:
+/// cargo test -- --show-output tests_complex
 #[cfg(test)]
 mod tests_complex {
     use super::*;

@@ -24,10 +24,10 @@ fn get_styles() -> Styles {
 /// and injects the actual system path of the config file.
 fn get_after_help() -> String {
     // Resolve path using a safe compile-time fallback environment for clap initialization
-    let fallback_env = Environment::fallback();
+    let env = Environment::new().unwrap_or_else(|_| Environment::fallback());
 
     // Safely attempt to get the configuration path, defaulting to a generic string on failure
-    let config_path = get_config_path(&fallback_env)
+    let config_path = get_config_path(&env)
         .map(|p| p.display().to_string())
         .unwrap_or_else(|_| "~/.config/wallswitch/wallswitch.json".to_string());
 

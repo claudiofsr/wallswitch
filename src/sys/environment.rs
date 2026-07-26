@@ -38,19 +38,15 @@ use std::{
     path::{Path, PathBuf},
 };
 
-#[cfg(unix)]
+#[cfg(not(windows))]
 const DEFAULT_TEMP_DIR: &str = "/tmp";
 #[cfg(windows)]
 const DEFAULT_TEMP_DIR: &str = "C:\\Windows\\Temp";
-#[cfg(not(any(unix, windows)))]
-const DEFAULT_TEMP_DIR: &str = ".";
 
-#[cfg(unix)]
-const DEFAULT_HOME_DIR: &str = "/";
+#[cfg(not(windows))]
+const DEFAULT_HOME_DIR: &str = ".";
 #[cfg(windows)]
 const DEFAULT_HOME_DIR: &str = "C:\\Users";
-#[cfg(not(any(unix, windows)))]
-const DEFAULT_HOME_DIR: &str = ".";
 
 /// Environment variables and system metadata.
 ///
@@ -67,9 +63,10 @@ impl Environment<'_> {
     /// Returns a fallback environment config with static defaults.
     pub fn fallback() -> Environment<'static> {
         let home = Path::new(DEFAULT_HOME_DIR);
+        let temp = Path::new(DEFAULT_TEMP_DIR);
         Environment {
-            home_dir: Cow::Borrowed(Path::new(home)),
-            temp_dir: Cow::Borrowed(Path::new(DEFAULT_TEMP_DIR)),
+            home_dir: Cow::Borrowed(home),
+            temp_dir: Cow::Borrowed(temp),
             cache_dir: Cow::Owned(fetch_cache_dir(home)),
             pkg_name: Cow::Borrowed("wallswitch"),
         }
@@ -191,8 +188,14 @@ fn fetch_cache_dir(home_dir: &Path) -> PathBuf {
 //                                   Tests                                    //
 //----------------------------------------------------------------------------//
 
+// cargo test -- --help
+// cargo test -- --nocapture
+// cargo test -- --show-output
+
+/// Run tests with:
+/// cargo test -- --show-output tests_environment
 #[cfg(test)]
-mod tests {
+mod tests_environment {
     use super::*;
 
     #[test]
@@ -213,5 +216,34 @@ mod tests {
         assert!(
             env.get_temp_dir().exists() || cfg!(any(target_os = "none", target_arch = "wasm32"))
         );
+    }
+
+    #[test]
+    fn test_fallback_paths_by_platform() {
+        let env = Environment::fallback();
+
+        #[cfg(not(windows))]
+        {
+            // On non-Windows platforms, verify that the fallback home directory
+            // points to the safe current working directory "." instead of "/"
+            assert_eq!(env.get_home_dir(), Path::new("."));
+
+            // On non-Windows platforms, verify that the fallback temporary directory is "/tmp"
+            assert_eq!(env.get_temp_dir(), Path::new("/tmp"));
+
+            // Verify that the configuration directory fallback is constructed
+            // safely relative to the current directory "." without system-wide write attempts
+            let expected_config = Path::new(".").join(".config").join("wallswitch");
+            assert_eq!(env.get_app_config_dir(), expected_config);
+        }
+
+        #[cfg(windows)]
+        {
+            // On Windows, verify that the fallback home directory is set to "C:\Users"
+            assert_eq!(env.get_home_dir(), Path::new("C:\\Users"));
+
+            // On Windows, verify that the fallback temporary directory is set to "C:\Windows\Temp"
+            assert_eq!(env.get_temp_dir(), Path::new("C:\\Windows\\Temp"));
+        }
     }
 }
