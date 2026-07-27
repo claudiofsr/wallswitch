@@ -87,7 +87,7 @@ pub fn run() -> WallSwitchResult<()> {
     let env = Environment::new()?;
 
     // 2. Parse command-line arguments as the primary source of intent
-    let args = Arguments::build(&env)?;
+    let args = Arguments::build();
 
     // 3. Load persistent state (History and BLAKE3 hash cache) from disk
     let mut state = State::load(&env);
@@ -95,10 +95,17 @@ pub fn run() -> WallSwitchResult<()> {
     // 4. Initialize configuration by merging JSON file settings with CLI overrides
     let config = Config::new(&args, &env)?;
 
-    // 5. Initialize the thread pool before executing heavy CPU operations
+    // 5. Handle configuration dump requests if the --config flag is present
+    if args.config {
+        let json = serde_json::to_string_pretty(&config)?;
+        println!("{json}");
+        process::exit(0);
+    }
+
+    // 6. Initialize the thread pool before executing heavy CPU operations
     init_rayon_thread_pool(config.max_threads_percent, config.verbose);
 
-    // 6. Handle listing requests
+    // 7. Handle listing requests
     if let Some(criteria) = args.list {
         match criteria {
             // If the user wants raw JSON state output
@@ -118,11 +125,11 @@ pub fn run() -> WallSwitchResult<()> {
         process::exit(0);
     }
 
-    // 7. Normal operation: Show startup info and clean up previous processes
+    // 8. Normal operation: Show startup info and clean up previous processes
     show_initial_msgs(&config, &env)?;
     kill_other_instances(&config, &env)?;
 
-    // 8. Execute either a single switch or start the infinite loop
+    // 9. Execute either a single switch or start the infinite loop
     if config.once {
         try_run_cycle(&config, &mut state, &env)?;
     } else {

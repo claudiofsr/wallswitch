@@ -1,7 +1,4 @@
-use crate::{
-    Colors, Config, Environment, Orientation, ProceduralEffect, SortCriteria, WallSwitchResult,
-    get_config_path, read_config_file,
-};
+use crate::{Colors, Environment, Orientation, ProceduralEffect, SortCriteria, get_config_path};
 use clap::{
     CommandFactory, Parser,
     builder::{
@@ -447,30 +444,18 @@ pub struct Arguments {
 }
 
 impl Arguments {
-    /// Build Arguments struct
-    pub fn build(env: &Environment) -> WallSwitchResult<Arguments> {
-        let args: Arguments = Arguments::parse();
+    /// Parses and builds the command-line arguments.
+    ///
+    /// If a shell completion generator is requested, this method outputs
+    /// the completion script to standard output and terminates the process.
+    pub fn build() -> Self {
+        let args = Self::parse();
 
         if let Some(generator) = args.generator {
             args.print_completions(generator);
         }
 
-        if args.config {
-            let config_path = get_config_path(env)?;
-            let config = match read_config_file(&config_path) {
-                Ok(cfg) => cfg,
-                Err(_) => {
-                    // Fall back to creating, writing, and returning the default configuration
-                    let default_config = Config::default_with_env(env);
-                    default_config.write_config_file(&config_path, true)?
-                }
-            };
-            let json: String = serde_json::to_string_pretty(&config)?;
-            println!("{json}");
-            std::process::exit(0);
-        }
-
-        Ok(args)
+        args
     }
 
     /// Print shell completions to standard output
