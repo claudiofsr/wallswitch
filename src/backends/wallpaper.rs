@@ -471,14 +471,36 @@ fn assemble_final_wallpaper(
     Ok(final_canvas)
 }
 
+/// Partitions a flat slice of images into sub-slices for each configured monitor.
+///
+/// Each monitor consumes a specified number of pictures (`pictures_per_monitor`).
+/// The iterator lazily advances through the `images` slice, dividing it into chunks
+/// corresponding to each monitor's requirements.
+///
+/// # Safety & Panic-Freedom
+///
+/// Uses [`slice::split_at_checked`] instead of `split_at` to eliminate runtime panics
+/// if fewer images are available than the monitor configuration requests.
+///
+/// - If `count <= images.len()`, the slice is split into `[0..count]` (head) and `[count..]` (tail).
+/// - If `count > images.len()`, it gracefully falls back to yielding all remaining images
+///   in `head` and leaves `tail` as an empty slice (`&[]`).
 fn get_partitions_iter<'a>(
     mut images: &'a [FileInfo],
     config: &'a Config,
 ) -> impl Iterator<Item = &'a [FileInfo]> {
     config.monitors.iter().map(move |monitor| {
-        let count = (monitor.pictures_per_monitor as usize).min(images.len());
-        let (head, tail) = images.split_at(count);
+        let count = monitor.pictures_per_monitor as usize;
+
+        // Perform safe boundary splitting:
+        // If there are not enough images remaining, consume what is left
+        // and set the remaining tail to an empty slice (&[]).
+        let (head, tail) = images.split_at_checked(count).unwrap_or((images, &[]));
+
+        // Advance the internal cursor to the unassigned remainder of the slice
         images = tail;
+
+        // Return the chunk allocated for the current monitor
         head
     })
 }
