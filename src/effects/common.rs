@@ -903,7 +903,9 @@ pub fn render_fractal_parallel<F>(
 
     process_rows_parallel_scoped(rgb_img, |y, row_data| {
         let y_f = y as f64;
-        for (x, pixel_slice) in row_data.chunks_exact_mut(3).enumerate() {
+        let (chunks, _remainder) = row_data.as_chunks_mut::<3>();
+
+        for (x, pixel_slice) in chunks.iter_mut().enumerate() {
             let x_f = x as f64;
 
             let mut bg_color = ColorRGB::from_slice(pixel_slice);

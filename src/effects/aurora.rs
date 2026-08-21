@@ -126,7 +126,9 @@ impl ImageEffect for AuroraGenerator {
                 v_sq: v * v,
             };
 
-            for (x, pixel_slice) in row_data.chunks_exact_mut(3).enumerate() {
+            let (chunks, _remainder) = row_data.as_chunks_mut::<3>();
+
+            for (x, pixel_slice) in chunks.iter_mut().enumerate() {
                 let alpha = params.alpha(x as f64, &row_state);
 
                 if alpha > 0.01 {

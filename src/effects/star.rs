@@ -51,7 +51,9 @@ impl ImageEffect for StarfieldGenerator {
                 }
             }
 
-            for (x, pixel_slice) in row_data.chunks_exact_mut(3).enumerate() {
+            let (chunks, _remainder) = row_data.as_chunks_mut::<3>();
+
+            for (x, pixel_slice) in chunks.iter_mut().enumerate() {
                 let x_f = x as f64;
 
                 let mut color_acc = ColorRGB::default();
