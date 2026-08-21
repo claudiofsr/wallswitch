@@ -24,7 +24,13 @@ impl AtomicWriteExt for Path {
         F: FnOnce(&Path) -> WallSwitchResult<()>,
     {
         // 1. Generate a temp file name in the same parent directory
-        let temp_ext = format!("tmp-{}", std::process::id());
+        // Incorporate both PID and a timestamp to ensure temporary file uniqueness
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+
+        let temp_ext = format!("tmp-{}-{}", std::process::id(), nanos);
         let temp_path = self.with_extension(temp_ext);
 
         // Ensure the parent directory tree exists

@@ -210,9 +210,9 @@ struct LayoutTarget {
 
 impl LayoutTarget {
     fn calculate(monitor: &Monitor) -> Result<Self, std::num::TryFromIntError> {
-        let mut width = monitor.resolution.width;
-        let mut height = monitor.resolution.height;
-        let pics_per_monitor = monitor.pictures_per_monitor.to_u64();
+        let mut width = monitor.resolution.width.max(1);
+        let mut height = monitor.resolution.height.max(1);
+        let pics_per_monitor = monitor.pictures_per_monitor.to_u64().max(1);
 
         let rem_w = (width % pics_per_monitor).try_into()?;
         let rem_h = (height % pics_per_monitor).try_into()?;
@@ -223,8 +223,8 @@ impl LayoutTarget {
         }
 
         Ok(Self {
-            base_w: width,
-            base_h: height,
+            base_w: width.max(1),
+            base_h: height.max(1),
             rem_w,
             rem_h,
         })
@@ -356,10 +356,10 @@ fn assemble_monitor_canvas(
     partition: &[FileInfo],
     monitor: &Monitor,
 ) -> WallSwitchResult<RgbImage> {
-    let mut monitor_canvas = RgbImage::new(
-        monitor.resolution.width as u32,
-        monitor.resolution.height as u32,
-    );
+    let canvas_w = (monitor.resolution.width as u32).max(1);
+    let canvas_h = (monitor.resolution.height as u32).max(1);
+
+    let mut monitor_canvas = RgbImage::new(canvas_w, canvas_h);
     let target = LayoutTarget::calculate(monitor)?;
 
     let mut current_x = 0;
@@ -440,7 +440,7 @@ fn assemble_final_wallpaper(
         }
     }
 
-    let mut final_canvas = RgbImage::new(total_w as u32, total_h as u32);
+    let mut final_canvas = RgbImage::new((total_w as u32).max(1), (total_h as u32).max(1));
     let mut current_x = 0;
     let mut current_y = 0;
 
@@ -456,12 +456,14 @@ fn assemble_final_wallpaper(
 
         image::imageops::overlay(&mut final_canvas, &img, current_x as i64, current_y as i64);
 
-        match config.monitor_orientation {
-            Horizontal => {
-                current_x += config.monitors[idx].resolution.width;
-            }
-            Vertical => {
-                current_y += config.monitors[idx].resolution.height;
+        if let Some(mon) = config.monitors.get(idx) {
+            match config.monitor_orientation {
+                Horizontal => {
+                    current_x += mon.resolution.width;
+                }
+                Vertical => {
+                    current_y += mon.resolution.height;
+                }
             }
         }
     }
@@ -474,7 +476,8 @@ fn get_partitions_iter<'a>(
     config: &'a Config,
 ) -> impl Iterator<Item = &'a [FileInfo]> {
     config.monitors.iter().map(move |monitor| {
-        let (head, tail) = images.split_at(monitor.pictures_per_monitor.into());
+        let count = (monitor.pictures_per_monitor as usize).min(images.len());
+        let (head, tail) = images.split_at(count);
         images = tail;
         head
     })

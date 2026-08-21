@@ -522,7 +522,7 @@ pub fn calculate_smooth_potential(i: u32, max_iterations: u32, z: Complex) -> f6
 
     let mag2 = z.abs_sq();
     let smooth_i = if mag2 > 4.0 {
-        let log_zn = mag2.ln() * 0.5;
+        let log_zn = (mag2.ln() * 0.5).max(1e-12);
         let nu = log_zn.ln() * LOG2_E;
         (i as f64 + 1.0 - nu).max(0.0)
     } else {
@@ -534,7 +534,9 @@ pub fn calculate_smooth_potential(i: u32, max_iterations: u32, z: Complex) -> f6
         return 0.0;
     }
 
-    let normalized = (smooth_i - min_render_iter) / (max_iterations as f64 - min_render_iter);
+    let denom = (max_iterations as f64 - min_render_iter).max(1.0);
+    let normalized = (smooth_i - min_render_iter) / denom;
+
     stretch_potential(normalized)
 }
 

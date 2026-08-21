@@ -795,14 +795,19 @@ impl Complex {
     /// with a smooth transition near the boundary radius.
     #[inline(always)]
     pub fn circular_fade(self, max_radius: f64, flat_ratio: f64) -> f64 {
+        if max_radius <= 0.0 || max_radius.is_nan() {
+            return 0.0;
+        }
+
         let dist = self.abs();
         let r = dist / max_radius;
 
-        if r < flat_ratio {
+        let safe_flat = flat_ratio.clamp(0.0, 0.9999);
+
+        if r < safe_flat {
             1.0
         } else if r < 1.0 {
-            // Smooth transition from 1.0 down to 0.0 using smoothstep
-            let t = (r - flat_ratio) / (1.0 - flat_ratio);
+            let t = (r - safe_flat) / (1.0 - safe_flat);
             1.0 - t * t * (3.0 - 2.0 * t)
         } else {
             0.0

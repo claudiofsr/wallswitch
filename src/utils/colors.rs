@@ -236,13 +236,13 @@ impl ColorRGB {
         }
     }
 
-    /// Applies gamma compression using a square root approximation.
+    /// Applies gamma compression using a square root approximation protected against negative `NaN`.
     #[inline(always)]
     pub fn ungamma2(self) -> Self {
         Self {
-            red: self.red.sqrt(),
-            green: self.green.sqrt(),
-            blue: self.blue.sqrt(),
+            red: 0.0_f64.max(self.red).sqrt(),
+            green: 0.0_f64.max(self.green).sqrt(),
+            blue: 0.0_f64.max(self.blue).sqrt(),
         }
     }
 
