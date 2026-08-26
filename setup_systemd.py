@@ -75,41 +75,46 @@ class SystemdConfigurator:
             )
 
     def write_unit_files(self) -> None:
-        """Generate and write service and timer files with secure file permissions."""
-        service_content = f"""[Unit]
-Description=Wallswitch Wallpaper Rotator
-After=graphical-session.target
+            """Generate and write service and timer files with secure file permissions."""
+            service_content = f"""[Unit]
+    Description=Wallswitch Wallpaper Rotator
+    PartOf=graphical-session.target
+    After=graphical-session.target
+    Requisite=graphical-session.target
 
-[Service]
-Type=oneshot
-ExecStart={self.cargo_bin.resolve()} --once
-"""
+    [Service]
+    Type=oneshot
+    PassEnvironment=DISPLAY WAYLAND_DISPLAY DBUS_SESSION_BUS_ADDRESS XDG_CURRENT_DESKTOP XDG_RUNTIME_DIR
+    ExecStart={self.cargo_bin.resolve()} --once
+    """
 
-        timer_content = f"""[Unit]
-Description=Run Wallswitch every {self.description_time}
+            timer_content = f"""[Unit]
+    Description=Run Wallswitch every {self.description_time}
+    PartOf=graphical-session.target
+    After=graphical-session.target
 
-[Timer]
-OnActiveSec=0sec
-OnUnitActiveSec={self.interval_seconds}sec
-AccuracySec=1s
+    [Timer]
+    OnActiveSec=10sec
+    OnUnitActiveSec={self.interval_seconds}sec
+    AccuracySec=1s
 
-[Install]
-WantedBy=timers.target
-"""
+    [Install]
+    WantedBy=graphical-session.target
+    """
 
-        try:
-            # Write systemd service file
-            self.service_path.write_text(service_content, encoding="utf-8")
-            self.service_path.chmod(0o600)  # Owner read/write only (rw-------)
-            print(f"Service file written to: {self.service_path}")
+            try:
+                # Write systemd service file
+                self.service_path.write_text(service_content, encoding="utf-8")
+                self.service_path.chmod(0o600)  # Owner read/write only (rw-------)
+                print(f"Service file written to: {self.service_path}")
 
-            # Write systemd timer file
-            self.timer_path.write_text(timer_content, encoding="utf-8")
-            self.timer_path.chmod(0o600)  # Owner read/write only (rw-------)
-            print(f"Timer file written to: {self.timer_path}")
+                # Write systemd timer file
+                self.timer_path.write_text(timer_content, encoding="utf-8")
+                self.timer_path.chmod(0o600)  # Owner read/write only (rw-------)
+                print(f"Timer file written to: {self.timer_path}")
 
-        except OSError as err:
-            raise OSError(f"Failed to write systemd unit files: {err}")
+            except OSError as err:
+                raise OSError(f"Failed to write systemd unit files: {err}")
 
     def reload_and_enable(self) -> None:
         """Interact with systemctl to reload configurations and enable the timer."""
