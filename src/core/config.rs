@@ -308,28 +308,36 @@ pub fn get_config_path(env: &Environment) -> WallSwitchResult<PathBuf> {
 
 /// Resolves the standard active wallpaper output file path under the user's cache directory.
 ///
-/// Dynamically detects whether [`PATH_WALL_A`] or [`PATH_WALL_B`] is currently active.
+/// # Resolution Lifecycle
+/// - If both [`PATH_WALL_A`] and [`PATH_WALL_B`] exist, returns the most recently modified buffer.
+/// - If only buffer B exists, returns buffer B.
+/// - In all other cases (only buffer A exists, or fresh install where neither exists),
+///   it cleanly defaults to [`PATH_WALL_A`].
 pub fn get_wallpaper_path(env: &Environment) -> WallSwitchResult<PathBuf> {
     let cache_dir = env.get_app_cache_dir();
     let path_a = cache_dir.join(PATH_WALL_A);
     let path_b = cache_dir.join(PATH_WALL_B);
 
-    // Identifica qual buffer é o mais recente no disco na inicialização
-    let time_a = path_a
-        .metadata()
-        .and_then(|m| m.modified())
-        .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
+    let active_path = match (path_a.exists(), path_b.exists()) {
+        (true, true) => {
+            let time_a = path_a
+                .metadata()
+                .and_then(|m| m.modified())
+                .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
 
-    let time_b = path_b
-        .metadata()
-        .and_then(|m| m.modified())
-        .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
+            let time_b = path_b
+                .metadata()
+                .and_then(|m| m.modified())
+                .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
 
-    if time_b > time_a {
-        Ok(path_b)
-    } else {
-        Ok(path_a)
-    }
+            if time_b > time_a { path_b } else { path_a }
+        }
+        (false, true) => path_b,
+        // Cobre tanto (true, false) quanto a 1ª execução (false, false)
+        _ => path_a,
+    };
+
+    Ok(active_path)
 }
 
 /// Discovers standard directories where user wallpapers are located.

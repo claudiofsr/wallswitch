@@ -241,11 +241,18 @@ impl WallpaperBackend for OpenboxBackend {
 
 /// Toggles the ping-pong double buffer path in-memory ([`PATH_WALL_A`] <-> [`PATH_WALL_B`]).
 ///
-/// # Pure & Zero-Allocation Function
-/// Uses `eq_ignore_ascii_case` for zero-allocation byte comparisons:
-/// - If current filename is [`PATH_WALL_A`] (case-insensitive) -> returns [`PATH_WALL_B`]
-/// - Otherwise -> returns [`PATH_WALL_A`]
+/// # Lifecycle & Self-Healing Logic
+/// 1. If the current wallpaper does not exist on disk yet (1st run ever),
+///    it guarantees the target is [`PATH_WALL_A`].
+/// 2. If it already exists, it toggles in-memory with zero heap allocations:
+///    - `_a.png` -> `_b.png`
+///    - `_b.png` -> `_a.png`
 pub fn toggle_ping_pong_path(current_path: &Path) -> PathBuf {
+    // Caso especial: se o arquivo não existe no disco (1ª execução), o alvo DEVE ser o _a!
+    if !current_path.exists() {
+        return current_path.with_file_name(PATH_WALL_A);
+    }
+
     let is_buffer_a = current_path
         .file_name()
         .and_then(|n| n.to_str())
@@ -575,23 +582,31 @@ fn get_partitions_iter<'a>(
 mod tests_wallpaper {
     use super::*;
     use crate::{Dimension, Orientation};
+    use std::fs;
 
     #[test]
-    fn test_toggle_ping_pong_path_equality() {
-        let path_a = Path::new("/tmp").join(PATH_WALL_A);
-        let path_b = Path::new("/tmp").join(PATH_WALL_B);
+    fn test_toggle_ping_pong_path() {
+        let temp_dir = std::env::temp_dir().join("wallswitch_toggle_test");
+        let _ = fs::create_dir_all(&temp_dir);
 
-        // 1. Alternância padrão usando as constantes centrais
+        let path_a = temp_dir.join(PATH_WALL_A);
+        let path_b = temp_dir.join(PATH_WALL_B);
+
+        let _ = fs::remove_file(&path_a);
+        let _ = fs::remove_file(&path_b);
+
+        // 1. Arquivo não existe no disco (1ª execução) -> DEVE retornar _A
+        assert_eq!(toggle_ping_pong_path(&path_a), path_a);
+
+        // 2. Arquivo _A existe no disco -> DEVE alternar para _B
+        fs::write(&path_a, b"buffer A").unwrap();
         assert_eq!(toggle_ping_pong_path(&path_a), path_b);
+
+        // 3. Arquivo _B existe no disco -> DEVE alternar para _A
+        fs::write(&path_b, b"buffer B").unwrap();
         assert_eq!(toggle_ping_pong_path(&path_b), path_a);
 
-        // 2. Case-insensitivity (ex: WALLSWITCH_A.PNG -> wallswitch_b.png)
-        let path_a_upper = Path::new("/tmp/WALLSWITCH_A.PNG");
-        assert_eq!(toggle_ping_pong_path(path_a_upper), path_b);
-
-        // 3. Fallback seguro para caminho genérico
-        let unknown_path = Path::new("/tmp/generic.png");
-        assert_eq!(toggle_ping_pong_path(unknown_path), path_a);
+        let _ = fs::remove_dir_all(&temp_dir);
     }
 
     /// Verifies that GNOME backend constructs all 3 required GSettings commands:
