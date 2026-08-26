@@ -2,8 +2,8 @@ use crate::{
     AwwwBackend, Colors, CommandExt, Config, Desktop, Dimension, Environment, FileInfo,
     HyprlandBackend, Monitor,
     Orientation::{Horizontal, Vertical},
-    ProceduralEffect, SwaybgBackend, U8Extension, WallSwitchError, WallSwitchResult,
-    detect_monitors, is_installed,
+    PATH_WALL_A, PATH_WALL_B, ProceduralEffect, SwaybgBackend, U8Extension, WallSwitchError,
+    WallSwitchResult, detect_monitors, is_installed,
 };
 use image::{RgbImage, imageops::FilterType};
 use rayon::prelude::*; // Required for parallel iterators
@@ -129,23 +129,13 @@ impl GnomeBackend {
 impl WallpaperBackend for GnomeBackend {
     /// Satisfies the trait contract by constructing commands for the resolved ping-pong target.
     fn build_commands(_images: &[FileInfo], config: &Config) -> WallSwitchResult<Vec<Command>> {
-        let target_path = resolve_ping_pong_path(&config.wallpaper);
+        let target_path = toggle_ping_pong_path(&config.wallpaper);
         Ok(Self::build_commands_for_path(&target_path))
     }
 
-    /// Orchestrates double-buffered wallpaper generation and applies it to GNOME.
-    ///
-    /// # Double-Buffering (Ping-Pong) Rationale & Architecture
-    /// Overwriting an active wallpaper file in-place on Linux causes GNOME's compositor (Mutter)
-    /// to catch an `inotify` modification event, momentarily drop its GPU texture, and display
-    /// the fallback default blue desktop background while the file write is in progress.
-    ///
-    /// By alternating writes between two separate buffers (`wallswitch_a.png` and `wallswitch_b.png`)
-    /// and updating GSettings to the inactive buffer once written, Mutter performs a smooth,
-    /// hardware-accelerated crossfade without any visual artifacts or blue screen flashes.
     fn apply(images: &[FileInfo], config: &Config) -> WallSwitchResult<()> {
-        // 1. Resolve the currently inactive buffer path
-        let target_path = resolve_ping_pong_path(&config.wallpaper);
+        // 1. Alterna para o próximo buffer em memória (A -> B ou B -> A)
+        let target_path = toggle_ping_pong_path(&config.wallpaper);
 
         if config.dry_run {
             println!(
@@ -153,7 +143,7 @@ impl WallpaperBackend for GnomeBackend {
                 target_path
             );
         } else {
-            // 2. Assemble the multi-monitor spanned image and save to the inactive buffer
+            // 2. Monta o canvas final e salva no buffer de destino
             let final_wallpaper = assemble_final_wallpaper(images, config)?;
             final_wallpaper
                 .save(&target_path)
@@ -167,7 +157,7 @@ impl WallpaperBackend for GnomeBackend {
             }
         }
 
-        // 3. Dispatch GSettings commands targeting the newly updated URI
+        // 3. Aplica os comandos apontando para a nova URI
         let mut commands = Self::build_commands_for_path(&target_path);
         for cmd in commands.iter_mut() {
             cmd.run_with_config(config, "Executing gsettings")?;
@@ -249,27 +239,23 @@ impl WallpaperBackend for OpenboxBackend {
 // PURE & ISOLATED UTILITY HELPERS
 // ==============================================================================
 
-/// Resolves the next inactive ping-pong buffer path (`wallswitch_a.png` or `wallswitch_b.png`).
+/// Toggles the ping-pong double buffer path in-memory ([`PATH_WALL_A`] <-> [`PATH_WALL_B`]).
 ///
-/// # Pure Logic & Didactic Explanation
-/// Compares the last modification timestamp (`mtime`) of both buffer files.
-/// Returns the path of the oldest buffer (or the one that does not exist yet)
-/// so that writes target the inactive file, leaving the active wallpaper untouched.
-pub fn resolve_ping_pong_path(base_path: &Path) -> PathBuf {
-    let path_a = base_path.with_file_name("wallswitch_a.png");
-    let path_b = base_path.with_file_name("wallswitch_b.png");
+/// # Pure & Zero-Allocation Function
+/// Uses `eq_ignore_ascii_case` for zero-allocation byte comparisons:
+/// - If current filename is [`PATH_WALL_A`] (case-insensitive) -> returns [`PATH_WALL_B`]
+/// - Otherwise -> returns [`PATH_WALL_A`]
+pub fn toggle_ping_pong_path(current_path: &Path) -> PathBuf {
+    let is_buffer_a = current_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .is_some_and(|name| name.eq_ignore_ascii_case(PATH_WALL_A));
 
-    let time_a = path_a
-        .metadata()
-        .and_then(|m| m.modified())
-        .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
-
-    let time_b = path_b
-        .metadata()
-        .and_then(|m| m.modified())
-        .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
-
-    if time_a > time_b { path_b } else { path_a }
+    if is_buffer_a {
+        current_path.with_file_name(PATH_WALL_B)
+    } else {
+        current_path.with_file_name(PATH_WALL_A)
+    }
 }
 
 // ==============================================================================
@@ -589,49 +575,23 @@ fn get_partitions_iter<'a>(
 mod tests_wallpaper {
     use super::*;
     use crate::{Dimension, Orientation};
-    use std::{fs, thread::sleep, time::Duration};
 
-    /// Tests that the ping-pong double buffer correctly alternates between `_a` and `_b`
-    /// based on filesystem modification timestamps (`mtime`).
     #[test]
-    fn test_resolve_ping_pong_path_alternation() {
-        let temp_dir = std::env::temp_dir().join("wallswitch_pingpong_unit_test");
-        let _ = fs::create_dir_all(&temp_dir);
-        let base_path = temp_dir.join("wallswitch.png");
+    fn test_toggle_ping_pong_path_equality() {
+        let path_a = Path::new("/tmp").join(PATH_WALL_A);
+        let path_b = Path::new("/tmp").join(PATH_WALL_B);
 
-        let path_a = temp_dir.join("wallswitch_a.png");
-        let path_b = temp_dir.join("wallswitch_b.png");
+        // 1. Alternância padrão usando as constantes centrais
+        assert_eq!(toggle_ping_pong_path(&path_a), path_b);
+        assert_eq!(toggle_ping_pong_path(&path_b), path_a);
 
-        // Clean up any stale test artifacts
-        let _ = fs::remove_file(&path_a);
-        let _ = fs::remove_file(&path_b);
+        // 2. Case-insensitivity (ex: WALLSWITCH_A.PNG -> wallswitch_b.png)
+        let path_a_upper = Path::new("/tmp/WALLSWITCH_A.PNG");
+        assert_eq!(toggle_ping_pong_path(path_a_upper), path_b);
 
-        // Case 1: Neither buffer exists -> Default fallback should select buffer A
-        let resolved_1 = resolve_ping_pong_path(&base_path);
-        assert_eq!(
-            resolved_1, path_a,
-            "Expected non-existent initial resolution to target buffer A"
-        );
-
-        // Case 2: Buffer A is created (active) -> Resolver must target inactive buffer B
-        fs::write(&path_a, b"buffer A content").unwrap();
-        let resolved_2 = resolve_ping_pong_path(&base_path);
-        assert_eq!(
-            resolved_2, path_b,
-            "Expected target to alternate to buffer B"
-        );
-
-        // Case 3: Buffer B is written with a newer timestamp -> Resolver must target buffer A
-        sleep(Duration::from_millis(50));
-        fs::write(&path_b, b"buffer B content").unwrap();
-        let resolved_3 = resolve_ping_pong_path(&base_path);
-        assert_eq!(
-            resolved_3, path_a,
-            "Expected target to alternate back to buffer A"
-        );
-
-        // Clean up temporary test directory
-        let _ = fs::remove_dir_all(&temp_dir);
+        // 3. Fallback seguro para caminho genérico
+        let unknown_path = Path::new("/tmp/generic.png");
+        assert_eq!(toggle_ping_pong_path(unknown_path), path_a);
     }
 
     /// Verifies that GNOME backend constructs all 3 required GSettings commands:

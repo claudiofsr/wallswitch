@@ -10,6 +10,12 @@ use std::{
     path::{Path, PathBuf},
 };
 
+/// Standard filename for the Ping-Pong double-buffer A.
+pub const PATH_WALL_A: &str = "wallswitch_a.png";
+
+/// Standard filename for the Ping-Pong double-buffer B.
+pub const PATH_WALL_B: &str = "wallswitch_b.png";
+
 /// Configurable parameters and custom presets for procedural mathematical overlays.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EffectsConfig {
@@ -296,27 +302,30 @@ pub fn get_config_path(env: &Environment) -> WallSwitchResult<PathBuf> {
     Ok(config_path)
 }
 
-/// Resolves the standard wallpaper output file path under the user's cache directory.
+/// Resolves the standard active wallpaper output file path under the user's cache directory.
 ///
-/// This resolves to `~/.cache/wallswitch/wallswitch.png` on Unix-like systems and
-/// `%LOCALAPPDATA%\wallswitch\wallswitch.png` on Windows.
-///
-/// Saving the final compiled wallpaper within the user's cache partition is the standard
-/// best practice under the XDG Base Directory Specification. This prevents heavy, volatile
-/// binary image files from cluttering the user's configuration directory (`~/.config`),
-/// which is often targeted by system backups or dotfiles version control (Git).
-///
-/// # Errors
-///
-/// Returns a [`WallSwitchResult`] if the parent environment path cannot be resolved.
+/// Dynamically detects whether [`PATH_WALL_A`] or [`PATH_WALL_B`] is currently active.
 pub fn get_wallpaper_path(env: &Environment) -> WallSwitchResult<PathBuf> {
-    let mut wallpaper_path = env.get_app_cache_dir();
+    let cache_dir = env.get_app_cache_dir();
+    let path_a = cache_dir.join(PATH_WALL_A);
+    let path_b = cache_dir.join(PATH_WALL_B);
 
-    // Appends "wallswitch.png" inside the app's user cache directory
-    wallpaper_path.push(env.get_pkg_name());
-    wallpaper_path.set_extension("png");
+    // Identifica qual buffer é o mais recente no disco na inicialização
+    let time_a = path_a
+        .metadata()
+        .and_then(|m| m.modified())
+        .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
 
-    Ok(wallpaper_path)
+    let time_b = path_b
+        .metadata()
+        .and_then(|m| m.modified())
+        .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
+
+    if time_b > time_a {
+        Ok(path_b)
+    } else {
+        Ok(path_a)
+    }
 }
 
 /// Discovers standard directories where user wallpapers are located.
