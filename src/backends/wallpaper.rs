@@ -186,9 +186,28 @@ impl WallpaperBackend for XfceBackend {
 pub struct OpenboxBackend;
 
 impl WallpaperBackend for OpenboxBackend {
+    /// Builds the execution command for X11 / Openbox environments using `feh`.
+    ///
+    /// # Protocol Guard & Didactic Rationale
+    /// `feh` relies directly on the legacy X11 protocol and requires a valid `$DISPLAY`
+    /// to connect to the X Server root window. When running inside a pure Wayland session
+    /// (e.g., Mutter, Hyprland, Sway), invoking `feh` results in an immediate display
+    /// connection failure (`feh ERROR: Can't open X display`).
+    ///
+    /// This guard guarantees fail-fast execution and prevents unnecessary process spawns
+    /// by ensuring `feh` is exclusively executed under native X11 sessions.
     fn build_commands(images: &[FileInfo], config: &Config) -> WallSwitchResult<Vec<Command>> {
-        let mut feh_cmd = Command::new(&config.path_feh);
+        // Defensive check: Prevent executing X11 tools within modern Wayland sessions
+        if config.desktop.is_wayland() {
+            return Err(WallSwitchError::CommandFailed {
+                program: "feh".to_string(),
+                status: "skipped".to_string(),
+                stderr: "feh cannot run inside a Wayland session. Use a Wayland backend (awww, swaybg, hyprpaper) or native DE tools (GNOME/XFCE).".to_string(),
+            });
+        }
 
+        // Construct the multi-monitor wallpaper assignment command for X11
+        let mut feh_cmd = Command::new(&config.path_feh);
         for image in images {
             feh_cmd.arg("--bg-fill").arg(&image.path);
         }

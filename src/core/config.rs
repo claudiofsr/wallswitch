@@ -481,7 +481,17 @@ impl Config {
             });
         }
 
-        if !self.path_feh.is_file() {
+        // Validate the `feh` executable path only when running under an X11/Openbox session.
+        // Didactic explanation:
+        // 1. `feh` relies on the X11 display server and is incompatible with Wayland compositors.
+        // 2. Full desktop environments (such as GNOME or XFCE) use their own native backends
+        //    (`gsettings` and `xfconf-query`) and do not require `feh`.
+        // 3. Therefore, we only probe `$PATH` for `feh` if the session is strictly X11/Openbox
+        //    and the current binary path is missing or invalid.
+        if !self.desktop.is_wayland()
+            && self.desktop == Desktop::Openbox
+            && !self.path_feh.is_file()
+        {
             self.path_feh = get_feh_path(true)?;
         }
 

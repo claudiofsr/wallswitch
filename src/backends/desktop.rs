@@ -82,6 +82,18 @@ impl fmt::Display for Desktop {
 }
 
 impl Desktop {
+    /// Checks if the current session is running under Wayland.
+    #[inline]
+    pub fn is_wayland(&self) -> bool {
+        matches!(
+            self,
+            Desktop::Hyprland | Desktop::Niri | Desktop::Labwc | Desktop::Mango | Desktop::Wayland
+        ) || env::var("WAYLAND_DISPLAY").is_ok()
+            || env::var("XDG_SESSION_TYPE")
+                .map(|v| v.eq_ignore_ascii_case("wayland"))
+                .unwrap_or(false)
+    }
+
     /// Detects the active desktop environment based on global system state.
     ///
     /// The detection strategy follows two progressive phases:
@@ -110,6 +122,16 @@ impl Desktop {
             if env::var(var).is_ok() {
                 return desktop;
             }
+        }
+
+        // 3. Robust Wayland vs X11 Fallback:
+        // If Wayland is present, fallback to Desktop::Wayland instead of Openbox/feh!
+        if env::var("WAYLAND_DISPLAY").is_ok()
+            || env::var("XDG_SESSION_TYPE")
+                .map(|v| v.eq_ignore_ascii_case("wayland"))
+                .unwrap_or(false)
+        {
+            return Desktop::Wayland;
         }
 
         Desktop::Openbox
