@@ -150,6 +150,7 @@ impl Desktop {
 //                                   Tests                                    //
 //----------------------------------------------------------------------------//
 
+/// cargo test -- --show-output tests_desktop
 #[cfg(test)]
 mod tests_desktop {
     use super::*;
