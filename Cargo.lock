@@ -1500,7 +1500,7 @@ dependencies = [
 
 [[package]]
 name = "wallswitch"
-version = "0.65.7"
+version = "0.65.8"
 dependencies = [
  "blake3",
  "clap",

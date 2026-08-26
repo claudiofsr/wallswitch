@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::{env, fmt, str::FromStr};
 
+use crate::is_process_running;
+
 /// Table mapping specific environment variables to their respective [`Desktop`] environments.
 ///
 /// Ordered from most specific signatures (e.g., compositor-specific sockets) to most
@@ -94,14 +96,8 @@ impl Desktop {
                 .unwrap_or(false)
     }
 
-    /// Detects the active desktop environment based on global system state.
-    ///
-    /// The detection strategy follows two progressive phases:
-    /// 1. Queries standard XDG environment variables.
-    /// 2. Loops through a static table of specific environment signatures (e.g. compositor sockets,
-    ///    display flags) to handle early-boot race conditions where XDG variables are not yet ready.
-    ///
-    /// If all detection methods fail, it defaults to [`Desktop::Openbox`].
+    /// Detects the active desktop environment with process-table fallback
+    /// for robust execution inside systemd user services.
     pub fn detect() -> Self {
         // 1. Try standard XDG environment variables first
         for key in [
@@ -117,15 +113,27 @@ impl Desktop {
             }
         }
 
-        // 2. DRY Fallbacks for early autostart race conditions
+        // 2. Specific compositor signatures
         for &(var, desktop) in DETECTION_SIGNATURES {
             if env::var(var).is_ok() {
                 return desktop;
             }
         }
 
-        // 3. Robust Wayland vs X11 Fallback:
-        // If Wayland is present, fallback to Desktop::Wayland instead of Openbox/feh!
+        // 3. Process-table fallback (infalível para systemd user services / cron)
+        if is_process_running("gnome-shell") {
+            return Desktop::Gnome;
+        } else if is_process_running("xfce4-session") || is_process_running("xfwm4") {
+            return Desktop::Xfce;
+        } else if is_process_running("hyprland") {
+            return Desktop::Hyprland;
+        } else if is_process_running("niri") {
+            return Desktop::Niri;
+        } else if is_process_running("sway") {
+            return Desktop::Wayland;
+        }
+
+        // 4. Protocol fallback
         if env::var("WAYLAND_DISPLAY").is_ok()
             || env::var("XDG_SESSION_TYPE")
                 .map(|v| v.eq_ignore_ascii_case("wayland"))
