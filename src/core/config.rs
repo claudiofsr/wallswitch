@@ -233,7 +233,11 @@ impl Config {
         let config_path = get_config_path(env)?;
 
         let config: Config = match read_config_file(&config_path) {
-            Ok(configuration) => configuration,
+            Ok(mut configuration) => {
+                // CRÍTICO: Atualiza dinamicamente com o buffer que realmente está ativo no cache
+                configuration.wallpaper = get_wallpaper_path(env)?;
+                configuration
+            }
             Err(_) => {
                 read_default_config = true;
                 Self::default_with_env(env)
