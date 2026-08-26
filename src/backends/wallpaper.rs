@@ -2,7 +2,7 @@ use crate::{
     AwwwBackend, Colors, CommandExt, Config, Desktop, Dimension, Environment, FileInfo,
     HyprlandBackend, Monitor,
     Orientation::{Horizontal, Vertical},
-    PATH_WALL_A, PATH_WALL_B, ProceduralEffect, SwaybgBackend, U8Extension, WallSwitchError,
+    ProceduralEffect, SwaybgBackend, U8Extension, WALLPAPER_A, WALLPAPER_B, WallSwitchError,
     WallSwitchResult, detect_monitors, is_installed,
 };
 use image::{RgbImage, imageops::FilterType};
@@ -239,29 +239,29 @@ impl WallpaperBackend for OpenboxBackend {
 // PURE & ISOLATED UTILITY HELPERS
 // ==============================================================================
 
-/// Toggles the ping-pong double buffer path in-memory ([`PATH_WALL_A`] <-> [`PATH_WALL_B`]).
+/// Toggles the ping-pong double buffer path in-memory ([`WALLPAPER_A`] <-> [`WALLPAPER_B`]).
 ///
 /// # Lifecycle & Self-Healing Logic
 /// 1. If the current wallpaper does not exist on disk yet (1st run ever),
-///    it guarantees the target is [`PATH_WALL_A`].
+///    it guarantees the target is [`WALLPAPER_A`].
 /// 2. If it already exists, it toggles in-memory with zero heap allocations:
 ///    - `_a.png` -> `_b.png`
 ///    - `_b.png` -> `_a.png`
 pub fn toggle_ping_pong_path(current_path: &Path) -> PathBuf {
     // Caso especial: se o arquivo não existe no disco (1ª execução), o alvo DEVE ser o _a!
     if !current_path.exists() {
-        return current_path.with_file_name(PATH_WALL_A);
+        return current_path.with_file_name(WALLPAPER_A);
     }
 
-    let is_buffer_a = current_path
+    let is_wallpaper_a = current_path
         .file_name()
         .and_then(|n| n.to_str())
-        .is_some_and(|name| name.eq_ignore_ascii_case(PATH_WALL_A));
+        .is_some_and(|name| name.eq_ignore_ascii_case(WALLPAPER_A));
 
-    if is_buffer_a {
-        current_path.with_file_name(PATH_WALL_B)
+    if is_wallpaper_a {
+        current_path.with_file_name(WALLPAPER_B)
     } else {
-        current_path.with_file_name(PATH_WALL_A)
+        current_path.with_file_name(WALLPAPER_A)
     }
 }
 
@@ -589,8 +589,8 @@ mod tests_wallpaper {
         let temp_dir = std::env::temp_dir().join("wallswitch_toggle_test");
         let _ = fs::create_dir_all(&temp_dir);
 
-        let path_a = temp_dir.join(PATH_WALL_A);
-        let path_b = temp_dir.join(PATH_WALL_B);
+        let path_a = temp_dir.join(WALLPAPER_A);
+        let path_b = temp_dir.join(WALLPAPER_B);
 
         let _ = fs::remove_file(&path_a);
         let _ = fs::remove_file(&path_b);

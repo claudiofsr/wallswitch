@@ -11,10 +11,10 @@ use std::{
 };
 
 /// Standard filename for the Ping-Pong double-buffer A.
-pub const PATH_WALL_A: &str = "wallswitch_a.png";
+pub const WALLPAPER_A: &str = "wallswitch_a.png";
 
 /// Standard filename for the Ping-Pong double-buffer B.
-pub const PATH_WALL_B: &str = "wallswitch_b.png";
+pub const WALLPAPER_B: &str = "wallswitch_b.png";
 
 /// Configurable parameters and custom presets for procedural mathematical overlays.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -309,14 +309,14 @@ pub fn get_config_path(env: &Environment) -> WallSwitchResult<PathBuf> {
 /// Resolves the standard active wallpaper output file path under the user's cache directory.
 ///
 /// # Resolution Lifecycle
-/// - If both [`PATH_WALL_A`] and [`PATH_WALL_B`] exist, returns the most recently modified buffer.
+/// - If both [`WALLPAPER_A`] and [`WALLPAPER_B`] exist, returns the most recently modified buffer.
 /// - If only buffer B exists, returns buffer B.
 /// - In all other cases (only buffer A exists, or fresh install where neither exists),
-///   it cleanly defaults to [`PATH_WALL_A`].
+///   it cleanly defaults to [`WALLPAPER_A`].
 pub fn get_wallpaper_path(env: &Environment) -> WallSwitchResult<PathBuf> {
     let cache_dir = env.get_app_cache_dir();
-    let path_a = cache_dir.join(PATH_WALL_A);
-    let path_b = cache_dir.join(PATH_WALL_B);
+    let path_a = cache_dir.join(WALLPAPER_A);
+    let path_b = cache_dir.join(WALLPAPER_B);
 
     let active_path = match (path_a.exists(), path_b.exists()) {
         (true, true) => {
