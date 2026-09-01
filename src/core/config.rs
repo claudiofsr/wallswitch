@@ -290,7 +290,7 @@ impl Config {
             transition_fps: 60,
             transition_angle: 45,
             transition_pos: "center".to_string(),
-            max_threads_percent: 50,
+            max_threads_percent: 40,
             verbose: false,
         }
     }
